@@ -28,7 +28,7 @@ This Go library provides:
 > Note: This package is **not yet stable**. API subject to change.
 
 ```bash
-go get github.com/your-org/model-context-protocol
+go get github.com/null-create/gomcp
 ```
 
 ---
@@ -37,7 +37,7 @@ go get github.com/your-org/model-context-protocol
 
 ```go
 import (
-    mcp "github.com/your-org/model-context-protocol"
+    mcp "github.com/null-create/gomcp"
 )
 
 func main() {
