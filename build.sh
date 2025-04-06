@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-PROJECT_NAME="PROJECT_NAME" # Change this
+set -e
+
+PROJECT_NAME="gomcp"
 
 # Determine architecture
 ARCH=$(uname -m)
@@ -47,29 +49,23 @@ CYGWIN* | MINGW32* | MSYS* | MINGW*)
   ;;
 esac
 
-# Create bin directory
 BUILD_DIR="./bin"
 if [ ! -d BUILD_DIR ]; then
   mkdir -p "$BUILD_DIR"
 fi
 
-# Create final executable name
 if [ "$GOOS" == "windows" ]; then
   OUTPUT_FILE="$PROJECT_NAME.exe"
 else
   OUTPUT_FILE="$PROJECT_NAME"
 fi
 
-# Build the project
 echo "Downloading dependencies..."
 go mod download
 go mod tidy
 
 echo "Building project for $GOOS/$GOARCH..."
-GOOS=$GOOS GOARCH=$GOARCH go build -o "$OUTPUT_FILE"
-
-cp $OUTPUT_FILE $BUILD_DIR/$OUTPUT_FILE
-rm $OUTPUT_FILE
+GOOS=$GOOS GOARCH=$GOARCH go build -o $BUILD_DIR/$OUTPUT_FILE
 
 if ! ./bin/"$OUTPUT_FILE" -h; then
   echo "Failed to build new binary for $GOOS/$GOARCH"
