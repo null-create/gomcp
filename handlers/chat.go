@@ -9,21 +9,11 @@ import (
 	"time"
 
 	"github.com/gomcp/models"
+	"github.com/gomcp/types"
 )
 
-type ChatCompletionRequest struct {
-	Model    string `json:"model"`
-	Messages []struct {
-		Role      string            `json:"role"`
-		Content   string            `json:"content"`
-		ToolCalls []models.ToolCall `json:"tool_calls,omitempty"`
-	} `json:"messages"`
-	Tools  []models.ToolDefinition `json:"tools,omitempty"`
-	Stream bool                    `json:"stream,omitempty"`
-}
-
 func HandleChatCompletion(w http.ResponseWriter, r *http.Request) {
-	var req ChatCompletionRequest
+	var req types.ChatCompletionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
@@ -40,7 +30,7 @@ func HandleChatCompletion(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"tool_response": response,
 		})
 		return
@@ -93,12 +83,12 @@ func HandleChatCompletion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"id":      "chatcmpl-mockid",
 		"object":  "chat.completion",
 		"created": time.Now().Unix(),
 		"model":   modelName,
-		"choices": []map[string]interface{}{
+		"choices": []map[string]any{
 			{
 				"index": 0,
 				"message": map[string]string{

@@ -1,22 +1,16 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"time"
 
-type ToolCall struct {
-	Name      string                 `json:"name"`
-	Arguments map[string]interface{} `json:"arguments"`
-}
+	"github.com/gomcp/types"
+)
 
-type ToolDefinition struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Parameters  map[string]interface{} `json:"parameters"`
-}
-
-func HandleToolCall(tools []ToolDefinition, userMessage string) (interface{}, error) {
+func HandleToolCall(tools []types.ToolDefinition, userMessage string) (any, error) {
 	for _, tool := range tools {
 		if tool.Name == "get_time" && containsIgnoreCase(userMessage, "tool:get_time") {
-			return map[string]interface{}{
+			return map[string]any{
 				"tool":   "get_time",
 				"result": fmt.Sprintf("The current time is %s", Now()),
 			}, nil
@@ -31,5 +25,5 @@ func containsIgnoreCase(s, substr string) bool {
 }
 
 func Now() string {
-	return "2025-04-05T12:00:00Z" // Replace with time.Now().Format(time.RFC3339) if dynamic
+	return time.Now().Format(time.RFC3339)
 }
