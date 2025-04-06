@@ -4,8 +4,8 @@ import "github.com/spf13/cobra"
 
 var (
 	clientCmd = &cobra.Command{
-		Use:   "server",
-		Short: "start the mcp server",
+		Use:   "client",
+		Short: "start the mcp client",
 		Run:   runClientCmd,
 	}
 )
