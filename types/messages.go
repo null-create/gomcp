@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// Message Handlers work with stdio in the Transport layer
+type MessageHandler func(message json.RawMessage)
+
 // ExecutionStatus indicates the outcome of a tool execution attempt.
 type ExecutionStatus string
 
