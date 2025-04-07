@@ -5,13 +5,18 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/gomcp/types"
+
+	"github.com/google/uuid"
 )
 
 // Context represents a collection of memory blocks for a single client.
 type Context struct {
-	ID     string        `json:"id"`
-	Memory []MemoryBlock `json:"memory"`
-	Mutex  sync.Mutex    `json:"-"`
+	Mutex    sync.Mutex      `json:"-"`
+	ID       string          `json:"id"`
+	Memory   []MemoryBlock   `json:"memory"`
+	Messages []types.Message `json:"messages"`
 }
 
 // MemoryBlock represents an individual memory block.
@@ -92,4 +97,32 @@ func (ctx *Context) ClearMemory() {
 
 func (ctx *Context) String() string {
 	return fmt.Sprintf("Context{id: %s, memory: %v}", ctx.ID, ctx.Memory)
+}
+
+// AddToolResultMessage adds a tool result message to the context.
+func (ctx *Context) AddToolResultMessage(toolCallID, content string, status types.ExecutionStatus, execError error, outputHash, execEnv string) *types.Message {
+	resultMetadata := &types.ToolResultMetadata{
+		ExecutionStatus: status,
+		ExecutedAt:      time.Now().UTC(),
+		OutputHash:      outputHash, // Should be calculated by the tool executor
+		ExecutionEnv:    execEnv,
+	}
+	if execError != nil {
+		resultMetadata.ErrorMessage = execError.Error()
+	}
+
+	msg := types.Message{
+		ID:         generateUniqueID("msg"),
+		Role:       types.RoleTool,
+		Content:    content,
+		Timestamp:  time.Now().UTC(),
+		ToolCallID: toolCallID,
+		ToolResult: resultMetadata,
+	}
+	ctx.Messages = append(ctx.Messages, msg)
+	return &ctx.Messages[len(ctx.Messages)-1]
+}
+
+func generateUniqueID(prefix string) string {
+	return prefix + "_" + uuid.NewString()
 }
