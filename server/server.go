@@ -120,8 +120,7 @@ func (s *Server) Start(shutDown chan bool) {
 		}()
 
 		s.log.Info("shutting down server...")
-		err := s.Svr.Shutdown(shutdownCtx)
-		if err != nil {
+		if err := s.Svr.Shutdown(shutdownCtx); err != nil {
 			log.Fatal(err)
 		}
 		serverStopCtx()
