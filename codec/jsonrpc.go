@@ -57,17 +57,17 @@ func ParseJSONRPCRequest(r *http.Request) (*JSONRPCRequest, error) {
 	return &req, nil
 }
 
-func WriteJSONRPCResponse(w http.ResponseWriter, result any, id any) {
+func WriteJSONRPCResponse(w http.ResponseWriter, result any, id any) error {
 	resp := JSONRPCResponse{
 		JSONRPC: "2.0",
 		Result:  result,
 		ID:      id,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	return json.NewEncoder(w).Encode(resp)
 }
 
-func WriteJSONRPCError(w http.ResponseWriter, code int, message string, id any) {
+func WriteJSONRPCError(w http.ResponseWriter, code int, message string, id any) error {
 	if message == "" {
 		message = rpcErrorMessages[code]
 	}
@@ -80,5 +80,5 @@ func WriteJSONRPCError(w http.ResponseWriter, code int, message string, id any) 
 		ID: id,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	return json.NewEncoder(w).Encode(resp)
 }
