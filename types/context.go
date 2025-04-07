@@ -8,6 +8,7 @@ type Context struct {
 	CreatedAt  time.Time         `json:"created_at"`
 	UpdatedAt  time.Time         `json:"updated_at"`
 	Memory     []MemoryBlock     `json:"memory"`
+	Messages   []Message         `json:"messages"`
 	Metadata   map[string]string `json:"metadata,omitempty"`
 	IsArchived bool              `json:"is_archived"`
 }
