@@ -10,7 +10,7 @@ import (
 	msg "github.com/gomcp/types"
 )
 
-// STDIO Transport
+// STDIO Transport. Pass a messageHandler for I/O.
 func StartStdioTransport(handler msg.MessageHandler) {
 	scanner := bufio.NewScanner(io.Reader(os.Stdin))
 	for scanner.Scan() {
@@ -23,8 +23,4 @@ func StartStdioTransport(handler msg.MessageHandler) {
 	if err := scanner.Err(); err != nil {
 		log.Printf("STDIO scanner error: %v", err)
 	}
-}
-
-func WriteStdioMessage(msg any) error {
-	return json.NewEncoder(os.Stdout).Encode(msg)
 }
