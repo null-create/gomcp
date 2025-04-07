@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gomcp/contextmodel"
 	"github.com/gomcp/logger"
 
 	"github.com/google/uuid"
@@ -20,21 +21,24 @@ type MessageHandler func(message json.RawMessage)
 
 // SSEMCPClient implements the MCPClient interface using Server-Sent Events (SSE).
 type SSEMCPClient struct {
+	mu         sync.Mutex
 	log        *logger.Logger
 	serverURL  string
 	clientID   string
 	httpClient *http.Client
 	handlers   map[string]chan json.RawMessage
-	mu         sync.Mutex
+	contexts   map[string]*contextmodel.Context
 }
 
 func NewSSEMCPClient(serverURL, clientID string) *SSEMCPClient {
 	return &SSEMCPClient{
-		log:        logger.NewLogger("SSEMCPClient", uuid.NewString()),
-		serverURL:  serverURL,
-		clientID:   clientID,
-		httpClient: &http.Client{},
-		handlers:   make(map[string]chan json.RawMessage),
+		log:       logger.NewLogger("SSEMCPClient", uuid.NewString()),
+		serverURL: serverURL,
+		clientID:  clientID,
+		httpClient: &http.Client{
+			Timeout: time.Second * 30,
+		},
+		handlers: make(map[string]chan json.RawMessage),
 	}
 }
 
@@ -108,4 +112,53 @@ func (c *SSEMCPClient) Send(request any) error {
 		return fmt.Errorf("unexpected status: %s", resp.Status)
 	}
 	return nil
+}
+
+// MCP method integrations
+func (c *SSEMCPClient) HandleMCPNotification(method string, raw json.RawMessage) error {
+	switch method {
+	case "context/update":
+		return c.handleContextUpdate(raw)
+	default:
+		return fmt.Errorf("unsupported notification method: %s", method)
+	}
+}
+
+func (c *SSEMCPClient) handleContextUpdate(raw json.RawMessage) error {
+	var update contextmodel.ContextUpdate
+	if err := json.Unmarshal(raw, &update); err != nil {
+		return err
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ctx, ok := c.contexts[c.clientID]
+	if !ok {
+		ctx = contextmodel.NewContext(c.clientID, nil)
+		c.contexts[c.clientID] = ctx
+	}
+
+	ctx.ApplyUpdate(update)
+	return nil
+}
+
+func (c *SSEMCPClient) GetClientContext() *contextmodel.Context {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.contexts[c.clientID]
+}
+
+func (c *SSEMCPClient) AppendAssistantResponse(content string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if ctx, ok := c.contexts[c.clientID]; ok {
+		ctx.ApplyUpdate(contextmodel.ContextUpdate{
+			ID: ctx.ID,
+			Append: []contextmodel.MemoryBlock{{
+				Role:    "assistant",
+				Content: content,
+				Time:    time.Now(),
+			}},
+		})
+	}
 }
