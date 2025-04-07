@@ -97,10 +97,11 @@ Want to contribute or discuss ideas? Open an issue or start a discussion!
   /models        # Core structs (Context, MemoryBlock, Update)
   /client        # MCP client implementation
   /codec         # JSON/MsgPack (de)serialization
+  /contextmodel  # Context structure definitions
   /handlers      # Client and Server handlers
   /server        # MCP server implemnentation
   /backend       # Storage plugins
-  /sse           #
-  /stdio         #
-  /examples      # Usage examples and CLI tools
+  /sse           # SSE implementations
+  /stdio         # STDIO implementations
+  /types         # Type definitions
 ```

@@ -18,7 +18,7 @@ func StreamResponse(model, prompt string) (io.ReadCloser, error) {
 }
 
 func streamOllama(model, prompt string) (io.ReadCloser, error) {
-	body := map[string]interface{}{
+	body := map[string]any{
 		"model":  model,
 		"prompt": prompt,
 		"stream": true,

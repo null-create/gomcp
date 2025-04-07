@@ -25,7 +25,7 @@ func StartStdioTransport(handler MessageHandler) {
 	}
 }
 
-func WriteStdioMessage(msg interface{}) error {
+func WriteStdioMessage(msg any) error {
 	enc := json.NewEncoder(os.Stdout)
 	return enc.Encode(msg)
 }

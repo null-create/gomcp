@@ -3,18 +3,17 @@ module github.com/gomcp
 go 1.22.2
 
 require (
-	github.com/gorilla/mux v1.8.1
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
+	github.com/go-chi/chi v1.5.5
+	github.com/google/uuid v1.6.0
+	github.com/joeshaw/envdecode v0.0.0-20200121155833-099f1fc765bd
 )
 
 require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
-	github.com/go-chi/chi v1.5.5
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
-	github.com/google/uuid v1.6.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/joeshaw/envdecode v0.0.0-20200121155833-099f1fc765bd
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
