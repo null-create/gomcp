@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gomcp/contextmodel"
 	"github.com/gomcp/logger"
+	"github.com/gomcp/types"
 
 	"github.com/google/uuid"
 )
 
 type MessageHandler func(message json.RawMessage)
 
-// SSEMCPClient implements the MCPClient interface using Server-Sent Events (SSE).
+// SSEMCPClient implements the MCPClient using Server-Sent Events (SSE).
 type SSEMCPClient struct {
 	mu         sync.Mutex
 	log        *logger.Logger
@@ -27,7 +27,7 @@ type SSEMCPClient struct {
 	clientID   string
 	httpClient *http.Client
 	handlers   map[string]chan json.RawMessage
-	contexts   map[string]*contextmodel.Context
+	contexts   map[string]*types.Context
 }
 
 func NewSSEMCPClient(serverURL, clientID string) *SSEMCPClient {
@@ -42,7 +42,7 @@ func NewSSEMCPClient(serverURL, clientID string) *SSEMCPClient {
 	}
 }
 
-// starts MCP handshake with server
+// starts MCP handshake with server, then processes any responses with the given handler
 func (c *SSEMCPClient) Start(ctx context.Context, handler MessageHandler) error {
 	retries, maxRextries := 0, 3
 	url := fmt.Sprintf("%s?id=%s", c.serverURL, c.clientID)
@@ -58,6 +58,7 @@ func (c *SSEMCPClient) Start(ctx context.Context, handler MessageHandler) error 
 			c.log.Error(fmt.Sprintf("SSE connection error: %v", err))
 			retries += 1
 			if retries == maxRextries {
+				c.log.Error("unable to reach server. retries maxed out.")
 				break
 			}
 			time.Sleep(2 * time.Second)
@@ -126,7 +127,7 @@ func (c *SSEMCPClient) HandleMCPNotification(method string, raw json.RawMessage)
 }
 
 func (c *SSEMCPClient) handleContextUpdate(raw json.RawMessage) error {
-	var update contextmodel.ContextUpdate
+	var update types.ContextUpdate
 	if err := json.Unmarshal(raw, &update); err != nil {
 		return err
 	}
@@ -135,7 +136,7 @@ func (c *SSEMCPClient) handleContextUpdate(raw json.RawMessage) error {
 	defer c.mu.Unlock()
 	ctx, ok := c.contexts[c.clientID]
 	if !ok {
-		ctx = contextmodel.NewContext(c.clientID, nil)
+		ctx = types.NewContext(c.clientID, nil)
 		c.contexts[c.clientID] = ctx
 	}
 
@@ -143,7 +144,7 @@ func (c *SSEMCPClient) handleContextUpdate(raw json.RawMessage) error {
 	return nil
 }
 
-func (c *SSEMCPClient) GetClientContext() *contextmodel.Context {
+func (c *SSEMCPClient) GetClientContext() *types.Context {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.contexts[c.clientID]
@@ -153,9 +154,9 @@ func (c *SSEMCPClient) AppendAssistantResponse(content string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if ctx, ok := c.contexts[c.clientID]; ok {
-		ctx.ApplyUpdate(contextmodel.ContextUpdate{
+		ctx.ApplyUpdate(types.ContextUpdate{
 			ID: ctx.ID,
-			Append: []contextmodel.MemoryBlock{{
+			Append: []types.MemoryBlock{{
 				Role:    "assistant",
 				Content: content,
 				Time:    time.Now(),

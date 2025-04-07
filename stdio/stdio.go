@@ -6,12 +6,12 @@ import (
 	"io"
 	"log"
 	"os"
+
+	msg "github.com/gomcp/types"
 )
 
-type MessageHandler func(message json.RawMessage)
-
 // STDIO Transport
-func StartStdioTransport(handler MessageHandler) {
+func StartStdioTransport(handler msg.MessageHandler) {
 	scanner := bufio.NewScanner(io.Reader(os.Stdin))
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -26,6 +26,5 @@ func StartStdioTransport(handler MessageHandler) {
 }
 
 func WriteStdioMessage(msg any) error {
-	enc := json.NewEncoder(os.Stdout)
-	return enc.Encode(msg)
+	return json.NewEncoder(os.Stdout).Encode(msg)
 }
