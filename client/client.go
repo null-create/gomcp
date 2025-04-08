@@ -17,8 +17,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type MessageHandler func(message json.RawMessage)
-
 // SSEMCPClient implements the MCPClient using Server-Sent Events (SSE).
 type SSEMCPClient struct {
 	mu         sync.Mutex
@@ -43,7 +41,7 @@ func NewSSEMCPClient(serverURL, clientID string) *SSEMCPClient {
 }
 
 // starts MCP handshake with server, then processes any responses with the given handler
-func (c *SSEMCPClient) Start(ctx context.Context, handler MessageHandler) error {
+func (c *SSEMCPClient) Start(ctx context.Context, handler types.MessageHandler) error {
 	retries, maxRextries := 0, 3
 	url := fmt.Sprintf("%s?id=%s", c.serverURL, c.clientID)
 	for {
