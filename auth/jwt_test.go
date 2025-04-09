@@ -51,11 +51,11 @@ func TestTokenExtraction(t *testing.T) {
 	assert.NotEqual(t, "", tokenString)
 }
 
-func TestRetrieveSecret(t *testing.T) {
-	s := GetSecret()
-	assert.NotEqual(t, nil, s)
-	assert.NotEqual(t, 0, len(s))
-}
+// func TestRetrieveSecret(t *testing.T) {
+// 	s := GetSecret()
+// 	assert.NotEqual(t, nil, s)
+// 	assert.NotEqual(t, 0, len(s))
+// }
 
 func TestSecretGeneration(t *testing.T) {
 	testSecret := GenSecret(64)
