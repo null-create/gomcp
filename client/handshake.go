@@ -15,9 +15,9 @@ import (
 )
 
 // Initial MCP handshake with server
-func (s *MCPClient) Handshake() error {
+func (c *MCPClient) Handshake() error {
 	cs := ClientState{
-		initURL:           s.initURL,
+		initURL:           c.initURL,
 		SupportedVersions: []string{"2024-10-01", "2024-11-05"}, // Client supports two versions, latest is 2024-11-05
 		Info: mcp.ClientInfo{
 			Name:    "Client",
@@ -64,7 +64,7 @@ func (s *MCPClient) Handshake() error {
 		if err != nil {
 			return fmt.Errorf("client failed to send init notification: %s", err)
 		}
-		s.state = cs
+		c.state = cs
 
 		// --- Handshake Complete ---
 		log.Println("-------------------------------------")
