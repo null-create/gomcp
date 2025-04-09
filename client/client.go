@@ -15,8 +15,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// SSEMCPClient implements the MCPClient using Server-Sent Events (SSE).
-type SSEMCPClient struct {
+// MCPClient implements the MCPClient using Server-Sent Events (SSE).
+type MCPClient struct {
 	mu         sync.Mutex
 	log        *logger.Logger
 	serverURL  string
@@ -28,9 +28,11 @@ type SSEMCPClient struct {
 	state      ClientState
 }
 
-func NewSSEMCPClient(serverURL, initURL, clientID string) *SSEMCPClient {
-	return &SSEMCPClient{
-		log:       logger.NewLogger("SSEMCPClient", uuid.NewString()),
+// Initializes a new Client. Must be followed by a call to Handshake()
+// to establish client state.
+func NewMCPClient(serverURL, initURL, clientID string) *MCPClient {
+	return &MCPClient{
+		log:       logger.NewLogger("MCPClient", uuid.NewString()),
 		serverURL: serverURL,
 		initURL:   initURL,
 		clientID:  clientID,
@@ -42,8 +44,8 @@ func NewSSEMCPClient(serverURL, initURL, clientID string) *SSEMCPClient {
 	}
 }
 
-// Send RPC request to the server
-func (c *SSEMCPClient) Request(data codec.JSONRPCRequest) error {
+// Send JSONRPC requests to the server
+func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 	body, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -69,7 +71,7 @@ func (c *SSEMCPClient) Request(data codec.JSONRPCRequest) error {
 }
 
 // MCP method integrations
-func (c *SSEMCPClient) HandleMCPNotification(method string, raw json.RawMessage) error {
+func (c *MCPClient) HandleMCPNotification(method string, raw json.RawMessage) error {
 	switch method {
 	case "context/update":
 		return c.handleContextUpdate(raw)
@@ -78,7 +80,7 @@ func (c *SSEMCPClient) HandleMCPNotification(method string, raw json.RawMessage)
 	}
 }
 
-func (c *SSEMCPClient) handleContextUpdate(raw json.RawMessage) error {
+func (c *MCPClient) handleContextUpdate(raw json.RawMessage) error {
 	var update context.ContextUpdate
 	if err := json.Unmarshal(raw, &update); err != nil {
 		return err
@@ -96,13 +98,13 @@ func (c *SSEMCPClient) handleContextUpdate(raw json.RawMessage) error {
 	return nil
 }
 
-func (c *SSEMCPClient) GetClientContext() *context.Context {
+func (c *MCPClient) GetClientContext() *context.Context {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.contexts[c.clientID]
 }
 
-func (c *SSEMCPClient) AppendAssistantResponse(content string) {
+func (c *MCPClient) AppendAssistantResponse(content string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if ctx, ok := c.contexts[c.clientID]; ok {

@@ -14,7 +14,7 @@ import (
 )
 
 // Initial MCP handshake with server
-func (s *SSEMCPClient) Handshake() error {
+func (s *MCPClient) Handshake() error {
 	cs := ClientState{
 		initURL:           s.initURL,
 		SupportedVersions: []string{"2024-10-01", "2024-11-05"}, // Client supports two versions, latest is 2024-11-05
