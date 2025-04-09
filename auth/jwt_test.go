@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
+	"github.com/google/uuid"
 )
 
 func TestTokenCreation(t *testing.T) {
 	tok := NewT()
-	userID := NewUUID()
+	userID := uuid.NewString()
 	tokenString, err := tok.Create(userID)
 	if err != nil {
 		t.Fatalf("create token failed: %v", err)
@@ -20,7 +21,7 @@ func TestTokenCreation(t *testing.T) {
 
 func TestTokenVerification(t *testing.T) {
 	tok := NewT()
-	userID := NewUUID()
+	userID := uuid.NewString()
 	tokenString, err := tok.Create(userID)
 	if err != nil {
 		t.Fatalf("create token failed: %v", err)
@@ -37,7 +38,7 @@ func TestTokenVerification(t *testing.T) {
 
 func TestTokenExtraction(t *testing.T) {
 	tok := NewT()
-	userID := NewUUID()
+	userID := uuid.NewString()
 	rawToken, err := tok.Create(userID)
 	if err != nil {
 		t.Fatalf("create token failed: %v", err)

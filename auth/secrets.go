@@ -27,7 +27,7 @@ func GenSecret(length int) string {
 	if err != nil {
 		log.Fatalf("failed to generate secret: %v", err)
 	}
-	for i := 0; i < length; i++ {
+	for i := range length {
 		b[i] = chars[int(b[i])%charLen]
 	}
 	return string(b)
@@ -51,7 +51,7 @@ func CheckPasswordHash(pwPlainText, hashedPw string) bool {
 // technique from: https://github.com/a-h/templ/blob/main/examples/content-security-policy/main.go
 func GenNonce(size int) (string, error) {
 	ret := make([]byte, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
 		if err != nil {
 			return "", err
