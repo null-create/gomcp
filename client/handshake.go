@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -36,32 +37,32 @@ func (s *MCPClient) Handshake() error {
 
 	initReqJSON, err := cs.CreateInitializeRequest(uuid.NewString())
 	if err != nil {
-		log.Fatalf("Client failed to create initialize request: %v", err)
+		return fmt.Errorf("client failed to create initialize request: %v", err)
 	}
 
 	initRespJSON, err := cs.SendInitRequest(initReqJSON)
 	if err != nil {
-		log.Fatalf("Client init request failed: %s", err)
+		return fmt.Errorf("client init request failed: %s", err)
 	}
 
 	// Check if initRespJSON contains a JSON-RPC error response
 	var potentialErrorResp codec.JSONRPCResponse
 	if json.Unmarshal(initRespJSON, &potentialErrorResp) == nil && potentialErrorResp.Error != nil {
-		log.Fatalf("Server returned JSON-RPC error: %+v", potentialErrorResp.Error)
+		return fmt.Errorf("server returned JSON-RPC error: %+v", potentialErrorResp.Error)
 	}
 	if err := cs.ProcessInitializeResponse(initRespJSON); err != nil {
-		log.Fatalf("Client failed to process initialize response: %v", err)
+		return fmt.Errorf("client failed to process initialize response: %v", err)
 	}
 
 	if cs.NegotiatedVersion != "" && cs.ServerInfo != nil { // Check if handshake was successful
 		initializedNotiJSON, err := cs.CreateInitializedNotification()
 		if err != nil {
-			log.Fatalf("Client failed to create initialized notification: %v", err)
+			return fmt.Errorf("client failed to create initialized notification: %v", err)
 		}
 
 		_, err = cs.SendInitNotification(initializedNotiJSON)
 		if err != nil {
-			log.Fatalf("Client failed to send init notification: %s", err)
+			return fmt.Errorf("client failed to send init notification: %s", err)
 		}
 		s.state = cs
 
@@ -72,7 +73,7 @@ func (s *MCPClient) Handshake() error {
 		log.Println("-------------------------------------")
 
 	} else {
-		log.Fatalf("Client handshake failed. Cannot send initialized notification.")
+		return fmt.Errorf("client handshake failed. no negotiated version or server info retrieved")
 	}
 
 	return nil
