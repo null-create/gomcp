@@ -36,7 +36,7 @@ func (t *Token) Extract(rawReqToken string) (string, error) {
 // use the return value to compare against the db and whether
 // they're an actual user
 func (t *Token) Verify(tokenString string) (string, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		return t.Secret, nil
 	})
 	if err != nil {
