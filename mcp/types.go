@@ -93,14 +93,3 @@ func (i *InitializeResult) Bytes() []byte {
 	}
 	return b
 }
-
-// ServerState simulates the state maintained by the server
-type ServerState struct {
-	SupportedVersions []string
-	Info              ServerInfo
-	Capabilities      ServerCapabilities
-	ClientInfo        *ClientInfo
-	ClientCaps        *ClientCapabilities
-	NegotiatedVersion string
-	ClientInitialized bool
-}

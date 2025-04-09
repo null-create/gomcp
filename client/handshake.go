@@ -3,24 +3,35 @@ package client
 import (
 	"encoding/json"
 	"log"
+	"net/http"
+	"time"
 
 	"github.com/gomcp/codec"
+	"github.com/gomcp/logger"
 	"github.com/gomcp/mcp"
+
 	"github.com/google/uuid"
 )
 
 // Initial MCP handshake with server
 func (s *SSEMCPClient) Handshake() error {
 	cs := ClientState{
+		initURL:           s.initURL,
 		SupportedVersions: []string{"2024-10-01", "2024-11-05"}, // Client supports two versions, latest is 2024-11-05
 		Info: mcp.ClientInfo{
-			Name:    "ExampleClient",
+			Name:    "Client",
 			Version: "1.0.0",
 		},
 		Capabilities: mcp.ClientCapabilities{
 			Roots:    &mcp.RootCapabilities{ListChanged: true},
 			Sampling: &mcp.SamplingCapabilities{}, // Indicate support with empty struct pointer
 		},
+		ServerCaps: &mcp.ServerCapabilities{},
+		ServerInfo: &mcp.ServerInfo{},
+		httpClient: http.Client{
+			Timeout: time.Second * 30,
+		},
+		log: logger.NewLogger("CLIENT STATE", uuid.NewString()),
 	}
 
 	initReqJSON, err := cs.CreateInitializeRequest(uuid.NewString())
@@ -38,7 +49,6 @@ func (s *SSEMCPClient) Handshake() error {
 	if json.Unmarshal(initRespJSON, &potentialErrorResp) == nil && potentialErrorResp.Error != nil {
 		log.Fatalf("Server returned JSON-RPC error: %+v", potentialErrorResp.Error)
 	}
-
 	if err := cs.ProcessInitializeResponse(initRespJSON); err != nil {
 		log.Fatalf("Client failed to process initialize response: %v", err)
 	}

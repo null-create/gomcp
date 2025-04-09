@@ -1,6 +1,10 @@
-package types
+package context
 
-import "time"
+import (
+	"time"
+
+	"github.com/gomcp/types"
+)
 
 // Context represents a conversational context with memory, metadata, etc.
 type Context struct {
@@ -8,7 +12,7 @@ type Context struct {
 	CreatedAt  time.Time         `json:"created_at"`
 	UpdatedAt  time.Time         `json:"updated_at"`
 	Memory     []MemoryBlock     `json:"memory"`
-	Messages   []Message         `json:"messages"`
+	Messages   []types.Message   `json:"messages"`
 	Metadata   map[string]string `json:"metadata,omitempty"`
 	IsArchived bool              `json:"is_archived"`
 }

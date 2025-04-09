@@ -42,7 +42,7 @@ func NewClientState(initUrl string) ClientState {
 
 // Handshake methods
 
-func (cs *ClientState) CreateInitializeRequest(requestID any) ([]byte, error) {
+func (cs *ClientState) CreateInitializeRequest(requestID string) ([]byte, error) {
 	if len(cs.SupportedVersions) == 0 {
 		return nil, errors.New("client must support at least one protocol version")
 	}
@@ -71,16 +71,16 @@ func (cs *ClientState) CreateInitializeRequest(requestID any) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal initialize request: %w", err)
 	}
-	cs.log.Info(fmt.Sprintf("CLIENT: Sending Initialize Request (ID: %v): %s\n", requestID, string(reqJSON)))
+	cs.log.Info(fmt.Sprintf("sending initialize request (ID: %v): %s\n", requestID, string(reqJSON)))
 	return reqJSON, nil
 }
 
-func (cs *ClientState) SendInitRequest(request any) ([]byte, error) {
-	body, err := json.Marshal(request)
+func (cs *ClientState) SendInitRequest(initRequest []byte) ([]byte, error) {
+	body, err := json.Marshal(initRequest)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("POST", cs.initURL, bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, cs.initURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
