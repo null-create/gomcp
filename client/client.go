@@ -28,7 +28,7 @@ type MCPClient struct {
 	state      ClientState
 }
 
-// Initializes a new Client. Must be followed by a call to Handshake()
+// Initializes a new Client. Must be followed by a call to client.Handshake()
 // to establish client state.
 func NewMCPClient(serverURL, initURL, clientID string) *MCPClient {
 	return &MCPClient{
