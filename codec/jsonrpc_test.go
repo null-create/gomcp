@@ -52,8 +52,8 @@ func TestWriteJSONRPCResponse(t *testing.T) {
 	if response.JSONRPC != "2.0" {
 		t.Errorf("expected jsonrpc 2.0, got %s", response.JSONRPC)
 	}
-	if response.ID != 42 {
-		t.Errorf("expected id 42, got %v", response.ID)
+	if response.ID.(float64) != 42 {
+		t.Errorf("expected 42, got %v", response.ID)
 	}
 	if response.Result == nil {
 		t.Errorf("expected result, got nil")
