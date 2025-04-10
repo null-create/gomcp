@@ -11,7 +11,7 @@ func ParseJSONRPCRequest(r *http.Request) (*JSONRPCRequest, error) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
-	if req.JSONRPC != "2.0" {
+	if req.JSONRPC != JsonRPCVersion {
 		return nil, errors.New("invalid jsonrpc version")
 	}
 	if req.Method == "" {
@@ -22,7 +22,7 @@ func ParseJSONRPCRequest(r *http.Request) (*JSONRPCRequest, error) {
 
 func WriteJSONRPCResponse(w http.ResponseWriter, result any, id any) error {
 	resp := JSONRPCResponse{
-		JSONRPC: "2.0",
+		JSONRPC: JsonRPCVersion,
 		Result:  result,
 		ID:      id,
 	}
@@ -35,7 +35,7 @@ func WriteJSONRPCError(w http.ResponseWriter, code int, message string, id any) 
 		message = rpcErrorMessages[code]
 	}
 	resp := JSONRPCResponse{
-		JSONRPC: "2.0",
+		JSONRPC: JsonRPCVersion,
 		Error: &RPCError{
 			Code:    code,
 			Message: message,
