@@ -3,87 +3,118 @@ package codec
 import (
 	"bytes"
 	"encoding/json"
-	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestParseJSONRPCRequest(t *testing.T) {
-	requestData := JSONRPCRequest{
-		JSONRPC: JsonRPCVersion,
-		Method:  "test_method",
-		Params:  json.RawMessage(`{"key":"value"}`),
-		ID:      1,
+	tests := []struct {
+		name        string
+		body        string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid request",
+			body:        `{"jsonrpc":"2.0", "method":"sum", "params":[1,2], "id":1}`,
+			expectError: false,
+		},
+		{
+			name:        "invalid json",
+			body:        `{"jsonrpc": "2.0", "method": "sum",`,
+			expectError: true,
+		},
+		{
+			name:        "invalid version",
+			body:        `{"jsonrpc": "1.0", "method": "sum", "id":1}`,
+			expectError: true,
+			errorMsg:    "invalid jsonrpc version",
+		},
+		{
+			name:        "missing method",
+			body:        `{"jsonrpc": "2.0", "id":1}`,
+			expectError: true,
+			errorMsg:    "missing method",
+		},
 	}
-	buf := new(bytes.Buffer)
-	err := json.NewEncoder(buf).Encode(requestData)
-	if err != nil {
-		t.Fatalf("failed to encode request: %v", err)
-	}
-	r := httptest.NewRequest("POST", "/rpc", buf)
 
-	parsedReq, err := ParseJSONRPCRequest(r)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if parsedReq.Method != requestData.Method {
-		t.Errorf("expected method %s, got %s", requestData.Method, parsedReq.Method)
-	}
-	if parsedReq.JSONRPC != JsonRPCVersion {
-		t.Errorf("expected jsonrpc %s, got %s", JsonRPCVersion, parsedReq.JSONRPC)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(tt.body))
+			result, err := ParseJSONRPCRequest(req)
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				if tt.errorMsg != "" && err.Error() != tt.errorMsg {
+					t.Errorf("expected error %q, got %q", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if result.Method != "sum" {
+					t.Errorf("expected method 'sum', got '%s'", result.Method)
+				}
+			}
+		})
 	}
 }
 
 func TestWriteJSONRPCResponse(t *testing.T) {
-	recorder := httptest.NewRecorder()
-	WriteJSONRPCResponse(recorder, map[string]string{"result": "ok"}, 42)
+	rr := httptest.NewRecorder()
+	err := WriteJSONRPCResponse(rr, 42, 1)
 
-	res := recorder.Result()
-	defer res.Body.Close()
-	body, _ := io.ReadAll(res.Body)
-
-	var response JSONRPCResponse
-	err := json.Unmarshal(body, &response)
 	if err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if response.JSONRPC != JsonRPCVersion {
-		t.Errorf("expected jsonrpc %s, got %s", JsonRPCVersion, response.JSONRPC)
+	resp := rr.Result()
+	defer resp.Body.Close()
+
+	if contentType := resp.Header.Get("Content-Type"); contentType != "application/json" {
+		t.Errorf("expected content-type application/json, got %s", contentType)
 	}
-	if response.ID.(float64) != 42 {
-		t.Errorf("expected 42, got %v", response.ID)
+
+	var jsonResp JSONRPCResponse
+	if err := json.NewDecoder(resp.Body).Decode(&jsonResp); err != nil {
+		t.Fatalf("error decoding response: %v", err)
 	}
-	if response.Result == nil {
-		t.Errorf("expected result, got nil")
+
+	if jsonResp.JSONRPC != JsonRPCVersion {
+		t.Errorf("expected version %s, got %s", JsonRPCVersion, jsonResp.JSONRPC)
+	}
+	if jsonResp.Result.(float64) != 42 {
+		t.Errorf("expected result 42, got %v", jsonResp.Result)
+	}
+	if jsonResp.Error != nil {
+		t.Errorf("expected no error, got %v", jsonResp.Error)
 	}
 }
 
 func TestWriteJSONRPCError(t *testing.T) {
-	recorder := httptest.NewRecorder()
-	WriteJSONRPCError(recorder, -32601, "Method not found", "abc")
-
-	res := recorder.Result()
-	defer res.Body.Close()
-	body, _ := io.ReadAll(res.Body)
-
-	var response JSONRPCResponse
-	err := json.Unmarshal(body, &response)
+	rr := httptest.NewRecorder()
+	err := WriteJSONRPCError(rr, -32600, "", 1)
 	if err != nil {
-		t.Fatalf("failed to unmarshal error response: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if response.JSONRPC != JsonRPCVersion {
-		t.Errorf("expected jsonrpc %s, got %s", JsonRPCVersion, response.JSONRPC)
+	resp := rr.Result()
+	defer resp.Body.Close()
+
+	var jsonResp JSONRPCResponse
+	if err := json.NewDecoder(resp.Body).Decode(&jsonResp); err != nil {
+		t.Fatalf("error decoding response: %v", err)
 	}
-	if response.Error == nil {
-		t.Fatal("expected error object, got nil")
+
+	if jsonResp.Error == nil {
+		t.Fatal("expected error in response")
 	}
-	if response.Error.Code != -32601 {
-		t.Errorf("expected error code -32601, got %d", response.Error.Code)
+	if jsonResp.Error.Code != -32600 {
+		t.Errorf("expected error code -32600, got %d", jsonResp.Error.Code)
 	}
-	if response.ID != "abc" {
-		t.Errorf("expected id 'abc', got %v", response.ID)
+	if jsonResp.Error.Message != rpcErrorMessages[-32600] {
+		t.Errorf("expected message %q, got %q", rpcErrorMessages[-32600], jsonResp.Error.Message)
 	}
 }
