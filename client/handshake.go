@@ -46,11 +46,11 @@ func (c *MCPClient) Handshake() error {
 	}
 
 	// Check if initRespJSON contains a JSON-RPC error response
-	var potentialErrorResp codec.JSONRPCResponse
-	if json.Unmarshal(initRespJSON, &potentialErrorResp) == nil && potentialErrorResp.Error != nil {
-		return fmt.Errorf("server returned JSON-RPC error: %+v", potentialErrorResp.Error)
+	var jsonRpcResponse codec.JSONRPCResponse
+	if json.Unmarshal(initRespJSON, &jsonRpcResponse) == nil && jsonRpcResponse.Error != nil {
+		return fmt.Errorf("server returned JSON-RPC error: %+v", jsonRpcResponse.Error)
 	}
-	if err := cs.ProcessInitializeResponse(initRespJSON); err != nil {
+	if err := cs.ProcessInitializeResponse(jsonRpcResponse); err != nil {
 		return fmt.Errorf("client failed to process initialize response: %v", err)
 	}
 

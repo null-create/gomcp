@@ -1,18 +1,20 @@
 package client
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gomcp/codec"
-	"github.com/gomcp/context"
+	mcpctx "github.com/gomcp/context"
 	"github.com/gomcp/logger"
-
-	"github.com/google/uuid"
+	"github.com/gomcp/types"
 )
 
 // MCPClient implements the MCPClient using Server-Sent Events (SSE).
@@ -24,7 +26,7 @@ type MCPClient struct {
 	clientID   string
 	httpClient *http.Client
 	handlers   map[string]chan json.RawMessage
-	contexts   map[string]*context.Context
+	contexts   map[string]*mcpctx.Context
 	state      ClientState
 }
 
@@ -32,7 +34,7 @@ type MCPClient struct {
 // to establish client state.
 func NewMCPClient(serverURL, initURL, clientID string) *MCPClient {
 	return &MCPClient{
-		log:       logger.NewLogger("MCPClient", uuid.NewString()),
+		log:       logger.NewLogger("MCPClient", clientID),
 		serverURL: serverURL,
 		initURL:   initURL,
 		clientID:  clientID,
@@ -40,7 +42,7 @@ func NewMCPClient(serverURL, initURL, clientID string) *MCPClient {
 			Timeout: time.Second * 30,
 		},
 		handlers: make(map[string]chan json.RawMessage),
-		contexts: make(map[string]*context.Context),
+		contexts: make(map[string]*mcpctx.Context),
 	}
 }
 
@@ -65,56 +67,61 @@ func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		c.log.Warn(fmt.Sprintf("received non-204 response: %d", resp.StatusCode))
-		return fmt.Errorf("received non-204 response: %s", resp.Status)
+		return fmt.Errorf("received non-204 response: %d", resp.StatusCode)
 	}
 	return nil
 }
 
-// MCP method integrations
-func (c *MCPClient) HandleMCPNotification(method string, raw json.RawMessage) error {
-	switch method {
-	case "context/update":
-		return c.handleContextUpdate(raw)
-	default:
-		return fmt.Errorf("unsupported notification method: %s", method)
-	}
-}
+// Listen for and handle server-sent events using a provided handler
+func (c *MCPClient) Listen(ctx context.Context, handler types.MessageHandler) error {
+	url := fmt.Sprintf("%s?id=%s", c.serverURL, c.clientID)
 
-func (c *MCPClient) handleContextUpdate(raw json.RawMessage) error {
-	var update context.ContextUpdate
-	if err := json.Unmarshal(raw, &update); err != nil {
-		return err
-	}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	ctx, ok := c.contexts[c.clientID]
-	if !ok {
-		ctx = context.NewContext(c.clientID, nil)
-		c.contexts[c.clientID] = ctx
-	}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Accept", "text/event-stream")
 
-	ctx.ApplyUpdate(update)
-	return nil
-}
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			c.log.Error(fmt.Sprintf("client connection error: %v", err))
+			return fmt.Errorf("client connection error: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			c.log.Warn(fmt.Sprintf("non-200 response code received from server: %d", resp.StatusCode))
+			return nil
+		}
 
-func (c *MCPClient) GetClientContext() *context.Context {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.contexts[c.clientID]
-}
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				resp.Body.Close()
+				return nil
+			default:
+			}
 
-func (c *MCPClient) AppendAssistantResponse(content string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if ctx, ok := c.contexts[c.clientID]; ok {
-		ctx.ApplyUpdate(context.ContextUpdate{
-			ID: ctx.ID,
-			Append: []context.MemoryBlock{{
-				Role:    "assistant",
-				Content: content,
-				Time:    time.Now(),
-			}},
-		})
+			line := scanner.Text()
+			if strings.HasPrefix(line, "data: ") {
+				msg := strings.TrimPrefix(line, "data: ")
+				if err := handler(json.RawMessage(msg)); err != nil {
+					c.log.Error("handler error: " + err.Error())
+				}
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			c.log.Error("SSE scanner error: " + err.Error())
+		}
+		scanner = nil
+		resp.Body.Close()
+		time.Sleep(2 * time.Second)
 	}
 }

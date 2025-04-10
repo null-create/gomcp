@@ -104,14 +104,7 @@ func (cs *ClientState) SendInitRequest(initRequest []byte) ([]byte, error) {
 	return data.Bytes(), nil
 }
 
-func (cs *ClientState) ProcessInitializeResponse(respJSON []byte) error {
-	var resp codec.JSONRPCResponse
-	if err := json.Unmarshal(respJSON, &resp); err != nil {
-		return fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-	cs.log.Info(fmt.Sprintf("CLIENT: Received Response (ID: %v): %s\n", resp.ID, string(respJSON)))
-
-	// Basic validation (ID matching should be done by the caller comparing with sent request ID)
+func (cs *ClientState) ProcessInitializeResponse(resp codec.JSONRPCResponse) error {
 	if resp.Error != nil {
 		return fmt.Errorf("server returned error: code=%d, message=%s", resp.Error.Code, resp.Error.Message)
 	}
