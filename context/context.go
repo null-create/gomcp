@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/gomcp/types"
+
+	"github.com/google/uuid"
 )
 
 // Context represents a conversational context with memory, metadata, etc.
@@ -25,20 +27,29 @@ type ContextUpdate struct {
 	Archive  *bool             `json:"archive,omitempty"`
 }
 
+func NewContextUpdate() ContextUpdate {
+	return ContextUpdate{}
+}
+
 // MemoryBlock represents a single unit of contextual memory within a conversation.
 type MemoryBlock struct {
+	ID      string    `json:"id"`
 	Role    string    `json:"role"` // e.g., "user", "assistant", etc.
 	Content string    `json:"content"`
 	Time    time.Time `json:"time"`
 }
 
+func (m *MemoryBlock) UpdateContent(newContent string) {
+	m.Content = newContent
+}
+
 // NewContext creates a new Context with the given ID and optional metadata.
-func NewContext(id string, metadata map[string]string) *Context {
+func NewContext(metadata map[string]string) *Context {
 	return &Context{
-		ID:        id,
+		ID:        uuid.NewString(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		Memory:    []MemoryBlock{},
+		Memory:    make([]MemoryBlock, 0),
 		Metadata:  metadata,
 	}
 }
