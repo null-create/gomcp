@@ -61,12 +61,10 @@ func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.Error("failed to send request: " + err.Error())
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
-		c.log.Warn(fmt.Sprintf("received non-204 response: %d", resp.StatusCode))
 		return fmt.Errorf("received non-204 response: %d", resp.StatusCode)
 	}
 	return nil
@@ -91,12 +89,10 @@ func (c *MCPClient) Listen(ctx context.Context, handler types.MessageHandler) er
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			c.log.Error(fmt.Sprintf("client connection error: %v", err))
 			return fmt.Errorf("client connection error: %v", err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			c.log.Warn(fmt.Sprintf("non-200 response code received from server: %d", resp.StatusCode))
-			return nil
+			return fmt.Errorf("received non-200 return code: %d", resp.StatusCode)
 		}
 
 		scanner := bufio.NewScanner(resp.Body)
@@ -112,13 +108,13 @@ func (c *MCPClient) Listen(ctx context.Context, handler types.MessageHandler) er
 			if strings.HasPrefix(line, "data: ") {
 				msg := strings.TrimPrefix(line, "data: ")
 				if err := handler(json.RawMessage(msg)); err != nil {
-					c.log.Error("handler error: " + err.Error())
+					return err
 				}
 			}
 		}
 
 		if err := scanner.Err(); err != nil {
-			c.log.Error("SSE scanner error: " + err.Error())
+			return err
 		}
 		scanner = nil
 		resp.Body.Close()
