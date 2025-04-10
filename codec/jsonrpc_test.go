@@ -22,7 +22,7 @@ func TestParseJSONRPCRequest(t *testing.T) {
 	}
 	r := httptest.NewRequest("POST", "/rpc", buf)
 
-	parsedReq, err := ParseJSONRPCRequest(nil, r)
+	parsedReq, err := ParseJSONRPCRequest(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

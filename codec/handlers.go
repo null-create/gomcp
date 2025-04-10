@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func ParseJSONRPCRequest(w http.ResponseWriter, r *http.Request) (*JSONRPCRequest, error) {
+func ParseJSONRPCRequest(r *http.Request) (*JSONRPCRequest, error) {
 	var req JSONRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
