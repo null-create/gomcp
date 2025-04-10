@@ -10,7 +10,7 @@ import (
 
 func TestParseJSONRPCRequest(t *testing.T) {
 	requestData := JSONRPCRequest{
-		JSONRPC: "2.0",
+		JSONRPC: JsonRPCVersion,
 		Method:  "test_method",
 		Params:  json.RawMessage(`{"key":"value"}`),
 		ID:      1,
@@ -30,8 +30,8 @@ func TestParseJSONRPCRequest(t *testing.T) {
 	if parsedReq.Method != requestData.Method {
 		t.Errorf("expected method %s, got %s", requestData.Method, parsedReq.Method)
 	}
-	if parsedReq.JSONRPC != "2.0" {
-		t.Errorf("expected jsonrpc 2.0, got %s", parsedReq.JSONRPC)
+	if parsedReq.JSONRPC != JsonRPCVersion {
+		t.Errorf("expected jsonrpc %s, got %s", JsonRPCVersion, parsedReq.JSONRPC)
 	}
 }
 
@@ -49,11 +49,11 @@ func TestWriteJSONRPCResponse(t *testing.T) {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 
-	if response.JSONRPC != "2.0" {
-		t.Errorf("expected jsonrpc 2.0, got %s", response.JSONRPC)
+	if response.JSONRPC != JsonRPCVersion {
+		t.Errorf("expected jsonrpc %s, got %s", JsonRPCVersion, response.JSONRPC)
 	}
-	if response.ID != 42 {
-		t.Errorf("expected id 42, got %v", response.ID)
+	if response.ID.(float64) != 42 {
+		t.Errorf("expected 42, got %v", response.ID)
 	}
 	if response.Result == nil {
 		t.Errorf("expected result, got nil")
@@ -74,8 +74,8 @@ func TestWriteJSONRPCError(t *testing.T) {
 		t.Fatalf("failed to unmarshal error response: %v", err)
 	}
 
-	if response.JSONRPC != "2.0" {
-		t.Errorf("expected jsonrpc 2.0, got %s", response.JSONRPC)
+	if response.JSONRPC != JsonRPCVersion {
+		t.Errorf("expected jsonrpc %s, got %s", JsonRPCVersion, response.JSONRPC)
 	}
 	if response.Error == nil {
 		t.Fatal("expected error object, got nil")

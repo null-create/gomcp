@@ -38,18 +38,18 @@ func NewLogger(component string, id string) *Logger {
 
 	// make sure the log directory exists. if not, create it.
 	if err := createLogDir(logCfg.LogDir); err != nil {
-		log.Fatalf(fmt.Sprintf("failed to create log directory: %v", err))
+		log.Fatalf("failed to create log directory: %v", err)
 	}
 
 	// create the log file if it doesn't already exist
 	if err := createLogFile(logFile); err != nil {
-		log.Fatalf(fmt.Sprintf("failed to create log file: %v", err))
+		log.Fatalf("failed to create log file: %v", err)
 	}
 
 	// open for use by the CSV writer.
 	csvFile, err := os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		log.Fatalf(fmt.Sprintf("failed to open log file: %v", err))
+		log.Fatalf("failed to open log file: %v", err)
 	}
 	return &Logger{
 		component:   component,
@@ -70,7 +70,7 @@ func getCurrentDate() string {
 func createLogDir(logDirPath string) error {
 	if _, err := os.Stat(logDirPath); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(logDirPath, 0666); err != nil {
-			log.Fatalf(fmt.Sprintf("failed to create log directory: %v", err))
+			return fmt.Errorf("failed to create log directory: %v", err)
 		}
 	} else if err != nil {
 		return fmt.Errorf("failed to get log dir stats: %v", err)

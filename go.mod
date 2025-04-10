@@ -3,14 +3,26 @@ module github.com/gomcp
 go 1.22.2
 
 require (
-	github.com/spf13/cobra v1.9.1
-	github.com/spf13/viper v1.20.1
 	github.com/go-chi/chi v1.5.5
 	github.com/google/uuid v1.6.0
 	github.com/joeshaw/envdecode v0.0.0-20200121155833-099f1fc765bd
+	github.com/spf13/cobra v1.9.1
+	github.com/spf13/viper v1.20.1
+	golang.org/x/crypto v0.32.0
 )
 
 require (
+	github.com/alecthomas/colour v0.1.0 // indirect
+	github.com/alecthomas/repr v0.4.0 // indirect
+	github.com/hexops/gotextdiff v1.0.3 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/sergi/go-diff v1.2.0 // indirect
+)
+
+require (
+	github.com/alecthomas/assert v1.0.0
+	github.com/alecthomas/assert/v2 v2.11.0
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
