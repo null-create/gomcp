@@ -60,7 +60,7 @@ func (cs *ClientState) SetNegotiatedVersion(v string)      { cs.NegotiatedVersio
 func (cs *ClientState) SetServerInfo(info *mcp.ServerInfo) { cs.ServerInfo = info }
 func (cs *ClientState) SetInitialized(init bool)           { cs.Initialized = init }
 
-// Set the MCP with a testing client state
+// Set the MCP client state. Mainly used for testing.
 func (c *MCPClient) SetClientState(state types.Initializer) { c.state = state }
 
 // Handshake methods
