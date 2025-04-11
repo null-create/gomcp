@@ -27,7 +27,7 @@ type MCPClient struct {
 	httpClient *http.Client
 	handlers   map[string]chan json.RawMessage
 	contexts   map[string]*mcpctx.Context
-	state      ClientState
+	state      types.Initializer
 }
 
 // Initializes a new Client. Must be followed by a call to client.Handshake()
