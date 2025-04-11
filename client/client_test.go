@@ -41,7 +41,7 @@ func TestHandleContextUpdate_AppendMemory(t *testing.T) {
 	c := newMockClient()
 	c.contexts[c.clientID] = mcpctx.NewContext(map[string]string{})
 
-	mem := mcpctx.MemoryBlock{
+	mem := &mcpctx.MemoryBlock{
 		ID:      uuid.NewString(),
 		Role:    "user",
 		Content: "hello",
@@ -49,7 +49,7 @@ func TestHandleContextUpdate_AppendMemory(t *testing.T) {
 	}
 	update := mcpctx.ContextUpdate{
 		ID:     c.GetClientContext().ID,
-		Append: []mcpctx.MemoryBlock{mem},
+		Append: []*mcpctx.MemoryBlock{mem},
 	}
 	b, _ := json.Marshal(update)
 	err := c.handleContextUpdate(b)
@@ -61,7 +61,7 @@ func TestHandleContextUpdate_AppendMemory(t *testing.T) {
 func TestHandleContextClear(t *testing.T) {
 	c := newMockClient()
 	ctx := mcpctx.NewContext(map[string]string{"foo": "bar"})
-	ctx.Memory = append(ctx.Memory, mcpctx.MemoryBlock{Content: "keep this"})
+	ctx.Memory = append(ctx.Memory, &mcpctx.MemoryBlock{Content: "keep this"})
 	c.contexts[c.clientID] = ctx
 
 	update := mcpctx.ContextUpdate{ID: ctx.ID}

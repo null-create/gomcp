@@ -52,7 +52,7 @@ func (c *MCPClient) AppendAssistantResponse(content string) {
 		ctx.ApplyUpdate(mcpctx.ContextUpdate{
 			ID:       ctx.ID,
 			Metadata: c.contexts[c.clientID].Metadata,
-			Append: []mcpctx.MemoryBlock{{
+			Append: []*mcpctx.MemoryBlock{{
 				ID:      uuid.NewString(),
 				Role:    "assistant",
 				Content: content,

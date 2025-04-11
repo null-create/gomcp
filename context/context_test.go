@@ -35,7 +35,7 @@ func TestApplyUpdate_MetadataAppend(t *testing.T) {
 
 func TestApplyUpdate_AppendMemory(t *testing.T) {
 	ctx := NewContext(nil)
-	mem := MemoryBlock{
+	mem := &MemoryBlock{
 		ID:      uuid.NewString(),
 		Role:    "user",
 		Content: "Hello!",
@@ -43,7 +43,7 @@ func TestApplyUpdate_AppendMemory(t *testing.T) {
 	}
 	update := ContextUpdate{
 		ID:     ctx.ID,
-		Append: []MemoryBlock{mem},
+		Append: []*MemoryBlock{mem},
 	}
 
 	ctx.ApplyUpdate(update)
