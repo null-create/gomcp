@@ -5,18 +5,21 @@ go 1.22.2
 require (
 	github.com/go-chi/chi v1.5.5
 	github.com/google/uuid v1.6.0
-	github.com/joeshaw/envdecode v0.0.0-20200121155833-099f1fc765bd
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
+	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.32.0
 )
 
 require (
 	github.com/alecthomas/colour v0.1.0 // indirect
 	github.com/alecthomas/repr v0.4.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 )
 
 require (
