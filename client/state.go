@@ -52,6 +52,8 @@ func NewClientState(initUrl string) *ClientState {
 	}
 }
 
+// Implements Initializer interface.
+
 func (cs *ClientState) GetNegotiatedVersion() string       { return cs.NegotiatedVersion }
 func (cs *ClientState) IsInitialized() bool                { return cs.Initialized }
 func (cs *ClientState) HasServerInfo() bool                { return cs.ServerInfo != nil }
@@ -63,9 +65,9 @@ func (cs *ClientState) SetInitialized(init bool)           { cs.Initialized = in
 // Set the MCP client state. Mainly used for testing.
 func (c *MCPClient) SetClientState(state types.Initializer) { c.state = state }
 
-// Handshake methods
+// ======= Client State Handshake methods ====== //
 
-func (cs *ClientState) CreateInitializeRequest(requestID string) ([]byte, error) {
+func (cs *ClientState) CreateInitializeRequest() ([]byte, error) {
 	if len(cs.SupportedVersions) == 0 {
 		return nil, errors.New("client must support at least one protocol version")
 	}
@@ -85,7 +87,7 @@ func (cs *ClientState) CreateInitializeRequest(requestID string) ([]byte, error)
 
 	req := codec.JSONRPCRequest{
 		JSONRPC: codec.JsonRPCVersion,
-		ID:      requestID,
+		ID:      uuid.NewString(),
 		Method:  string(mcp.MethodInitialize),
 		Params:  paramsJSON,
 	}
