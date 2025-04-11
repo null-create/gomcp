@@ -8,10 +8,13 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"time"
 
 	"github.com/gomcp/codec"
 	"github.com/gomcp/logger"
 	"github.com/gomcp/mcp"
+	"github.com/gomcp/types"
+
 	"github.com/google/uuid"
 )
 
@@ -28,21 +31,43 @@ type ClientState struct {
 	httpClient        http.Client
 }
 
-func NewClientState(initUrl string) ClientState {
-	return ClientState{
+func NewClientState(initUrl string) *ClientState {
+	return &ClientState{
 		initURL:           initUrl,
-		SupportedVersions: make([]string, 0),
-		Info:              mcp.NewClientInfo(),
-		Capabilities:      mcp.NewClientCapabilities(),
-		NegotiatedVersion: codec.DefaultProtocolVersion,
-		Initialized:       false,
-		log:               logger.NewLogger("CLIENT STATE", uuid.NewString()),
+		SupportedVersions: []string{"2024-10-01", "2024-11-05"}, // Client supports two versions, latest is 2024-11-05
+		Info: mcp.ClientInfo{
+			Name:    "Client",
+			Version: "1.0.0",
+		},
+		Capabilities: mcp.ClientCapabilities{
+			Roots:    &mcp.RootCapabilities{ListChanged: true},
+			Sampling: &mcp.SamplingCapabilities{}, // Indicate support with empty struct pointer
+		},
+		ServerCaps: &mcp.ServerCapabilities{},
+		ServerInfo: &mcp.ServerInfo{},
+		httpClient: http.Client{
+			Timeout: time.Second * 30,
+		},
+		log: logger.NewLogger("CLIENT STATE", uuid.NewString()),
 	}
 }
 
-// Handshake methods
+// Implements Initializer interface.
 
-func (cs *ClientState) CreateInitializeRequest(requestID string) ([]byte, error) {
+func (cs *ClientState) GetNegotiatedVersion() string       { return cs.NegotiatedVersion }
+func (cs *ClientState) IsInitialized() bool                { return cs.Initialized }
+func (cs *ClientState) HasServerInfo() bool                { return cs.ServerInfo != nil }
+func (cs *ClientState) GetServerInfo() *mcp.ServerInfo     { return cs.ServerInfo }
+func (cs *ClientState) SetNegotiatedVersion(v string)      { cs.NegotiatedVersion = v }
+func (cs *ClientState) SetServerInfo(info *mcp.ServerInfo) { cs.ServerInfo = info }
+func (cs *ClientState) SetInitialized(init bool)           { cs.Initialized = init }
+
+// Set the MCP client state. Mainly used for testing.
+func (c *MCPClient) SetClientState(state types.Initializer) { c.state = state }
+
+// ======= Client State Handshake methods ====== //
+
+func (cs *ClientState) CreateInitializeRequest() ([]byte, error) {
 	if len(cs.SupportedVersions) == 0 {
 		return nil, errors.New("client must support at least one protocol version")
 	}
@@ -62,7 +87,7 @@ func (cs *ClientState) CreateInitializeRequest(requestID string) ([]byte, error)
 
 	req := codec.JSONRPCRequest{
 		JSONRPC: codec.JsonRPCVersion,
-		ID:      requestID,
+		ID:      uuid.NewString(),
 		Method:  string(mcp.MethodInitialize),
 		Params:  paramsJSON,
 	}
@@ -71,7 +96,6 @@ func (cs *ClientState) CreateInitializeRequest(requestID string) ([]byte, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal initialize request: %w", err)
 	}
-	cs.log.Info(fmt.Sprintf("sending initialize request (ID: %v): %s\n", requestID, string(reqJSON)))
 	return reqJSON, nil
 }
 
@@ -125,7 +149,7 @@ func (cs *ClientState) ProcessInitializeResponse(resp codec.JSONRPCResponse) err
 	// Client does not support the version server responded with.
 	if !versionSupported {
 		cs.Initialized = false
-		cs.log.Error(fmt.Sprintf("CLIENT: Server responded with unsupported version '%s'. Supported: %v. Disconnecting.\n", serverVersion, cs.SupportedVersions))
+		cs.log.Error(fmt.Sprintf("Server responded with unsupported version '%s'. Supported: %v. Disconnecting.\n", serverVersion, cs.SupportedVersions))
 		return fmt.Errorf("unsupported protocol version '%s' from server", serverVersion)
 	}
 

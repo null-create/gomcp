@@ -4,23 +4,25 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
-	"log"
 	"os"
 
 	msg "github.com/gomcp/types"
 )
 
-// STDIO Transport. Pass a messageHandler for I/O.
-func StartStdioTransport(handler msg.MessageHandler) {
+// STDIO Transport. Pass a messageHandler for I/O processing.
+func StartStdioTransport(handler msg.MessageHandler) error {
 	scanner := bufio.NewScanner(io.Reader(os.Stdin))
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(line) == 0 {
 			continue
 		}
-		handler(json.RawMessage(line))
+		if err := handler(json.RawMessage(line)); err != nil {
+			return err
+		}
 	}
 	if err := scanner.Err(); err != nil {
-		log.Printf("STDIO scanner error: %v", err)
+		return err
 	}
+	return nil
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gomcp/codec"
 	mcpctx "github.com/gomcp/context"
+	"github.com/gomcp/types"
 
 	"github.com/alecthomas/assert"
 	"github.com/google/uuid"
@@ -72,6 +73,33 @@ func TestHandleContextClear(t *testing.T) {
 	assert.Equal(t, "bar", newCtx.Metadata["foo"])
 	assert.Empty(t, newCtx.Memory)
 	assert.NotEqual(t, ctx.CreatedAt, newCtx.CreatedAt)
+}
+
+func TestHandleContextClear_PreservesMetadata(t *testing.T) {
+	metadata := map[string]string{"key": "value"}
+	client := &MCPClient{
+		clientID: "client1",
+		contexts: map[string]*mcpctx.Context{
+			"client1": mcpctx.NewContext(metadata),
+		},
+	}
+
+	client.contexts["client1"].Messages = append(client.contexts["client1"].Messages, types.Message{
+		ID:        uuid.NewString(),
+		Role:      "user",
+		Content:   "hello",
+		Timestamp: time.Now(),
+	})
+
+	update := mcpctx.ContextUpdate{ID: "ctx-id"}
+	raw, _ := json.Marshal(update)
+
+	err := client.handleContextClear(raw)
+	assert.NoError(t, err)
+
+	ctx := client.GetClientContext()
+	assert.Equal(t, "value", ctx.Metadata["key"])
+	assert.Empty(t, ctx.Messages)
 }
 
 func TestAppendAssistantResponse(t *testing.T) {
