@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/gomcp/codec"
@@ -19,14 +20,30 @@ type MockClientState struct {
 	ClientState // embed for fallback if needed
 }
 
-func (m *MockClientState) CreateInitializeRequest(id string) ([]byte, error) {
-	args := m.Called(id)
-	return args.Get(0).([]byte), args.Error(1)
+func (m *MockClientState) CreateInitializeRequest() ([]byte, error) {
+	args := m.Called()
+
+	switch v := args.Get(0).(type) {
+	case nil:
+		return nil, args.Error(1)
+	case []byte:
+		return v, args.Error(1)
+	default:
+		return nil, fmt.Errorf("SendInitRequest: unexpected return type %T", v)
+	}
 }
 
 func (m *MockClientState) SendInitRequest(req []byte) ([]byte, error) {
 	args := m.Called(req)
-	return args.Get(0).([]byte), args.Error(1)
+
+	switch v := args.Get(0).(type) {
+	case nil:
+		return nil, args.Error(1)
+	case []byte:
+		return v, args.Error(1)
+	default:
+		return nil, fmt.Errorf("SendInitRequest: unexpected return type %T", v)
+	}
 }
 
 func (m *MockClientState) ProcessInitializeResponse(resp codec.JSONRPCResponse) error {
@@ -41,7 +58,15 @@ func (m *MockClientState) CreateInitializedNotification() ([]byte, error) {
 
 func (m *MockClientState) SendInitNotification(req []byte) ([]byte, error) {
 	args := m.Called(req)
-	return args.Get(0).([]byte), args.Error(1)
+
+	switch v := args.Get(0).(type) {
+	case nil:
+		return nil, args.Error(1)
+	case []byte:
+		return v, args.Error(1)
+	default:
+		return nil, fmt.Errorf("SendInitRequest: unexpected return type %T", v)
+	}
 }
 
 // --- HANDSHAKE TESTS ---

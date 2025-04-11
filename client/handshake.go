@@ -6,8 +6,6 @@ import (
 	"log"
 
 	"github.com/gomcp/codec"
-
-	"github.com/google/uuid"
 )
 
 // Initial MCP handshake with server.
@@ -16,7 +14,7 @@ func (c *MCPClient) Handshake() error {
 		c.state = NewClientState(c.initURL)
 	}
 
-	initReqJSON, err := c.state.CreateInitializeRequest(uuid.NewString())
+	initReqJSON, err := c.state.CreateInitializeRequest()
 	if err != nil {
 		return fmt.Errorf("client failed to create initialize request: %v", err)
 	}
