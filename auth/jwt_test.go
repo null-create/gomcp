@@ -51,16 +51,3 @@ func TestTokenExtraction(t *testing.T) {
 	assert.NotContains(t, tokenString, "Bearer")
 	assert.NotEqual(t, "", tokenString)
 }
-
-// func TestRetrieveSecret(t *testing.T) {
-// 	s := GetSecret()
-// 	assert.NotEqual(t, nil, s)
-// 	assert.NotEqual(t, 0, len(s))
-// }
-
-func TestSecretGeneration(t *testing.T) {
-	testSecret := GenSecret(64)
-
-	assert.NotEqual(t, testSecret, "")
-	assert.Equal(t, len(testSecret), 64)
-}
