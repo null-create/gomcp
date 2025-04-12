@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	// "github.com/alecthomas/assert"
 	"github.com/gomcp/codec"
 	mcpctx "github.com/gomcp/context"
 	"github.com/gomcp/types"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,24 +26,6 @@ func newMockClient() *MCPClient {
 		contexts: make(map[string]*mcpctx.Context),
 	}
 }
-
-// type MockReaderCloser struct {
-// 	mock.Mock
-// 	Reader io.Reader
-// }
-
-// // Read delegates to the embedded reader
-// func (m *MockReaderCloser) Read(p []byte) (n int, err error) {
-// 	if m.Reader == nil {
-// 		return 0, io.EOF
-// 	}
-// 	return m.Reader.Read(p)
-// }
-
-// func (m *MockReaderCloser) Close() error {
-// 	args := m.Called()
-// 	return args.Error(0)
-// }
 
 func TestHandleContextUpdate_NewContext(t *testing.T) {
 	c := newMockClient()
