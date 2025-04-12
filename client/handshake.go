@@ -43,7 +43,6 @@ func (c *MCPClient) Handshake() error {
 		if err != nil {
 			return fmt.Errorf("client failed to send init notification: %s", err)
 		}
-		// c.state = &cs // Save state
 
 		//  Handshake Complete
 		log.Println("-------------------------------------")
