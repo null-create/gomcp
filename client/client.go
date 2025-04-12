@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ type MCPClient struct {
 	serverURL  string
 	initURL    string
 	clientID   string
+	done       chan struct{}
 	httpClient *http.Client
 	handlers   map[string]chan json.RawMessage
 	contexts   map[string]*mcpctx.Context
@@ -70,54 +72,93 @@ func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 	return nil
 }
 
-// Listen for and handle server-sent events using a provided handler
-func (c *MCPClient) Listen(ctx context.Context, handler types.MessageHandler) error {
-	url := fmt.Sprintf("%s?id=%s", c.serverURL, c.clientID)
+func (c *MCPClient) Start(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.serverURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Connection", "keep-alive")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to connect to SSE stream: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// start listening for server-side events
+	go c.listen(ctx, resp.Body, nil)
+
+	select {
+	// case <-c.endpointChan:
+	// 	// Endpoint received, proceed
+	case <-ctx.Done():
+		return fmt.Errorf("context cancelled while waiting for endpoint")
+	case <-time.After(30 * time.Second): // Add a timeout
+		return fmt.Errorf("timeout waiting for endpoint")
+	}
+
+	// return nil
+}
+
+// Continually listens for server-side events using the given reader.
+// Processes events with the given handler.
+func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler types.MessageHandler) error {
+	defer reader.Close()
+
+	br := bufio.NewReader(reader)
+	var event, data string
 
 	for {
 		select {
+		case <-c.done:
+			return nil
 		case <-ctx.Done():
 			return nil
 		default:
-		}
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create request: %w", err)
-		}
-		req.Header.Set("Accept", "text/event-stream")
-
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("client connection error: %v", err)
-		}
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("received non-200 return code: %d", resp.StatusCode)
-		}
-
-		scanner := bufio.NewScanner(resp.Body)
-		for scanner.Scan() {
-			select {
-			case <-ctx.Done():
-				resp.Body.Close()
-				return nil
-			default:
-			}
-
-			line := scanner.Text()
-			if strings.HasPrefix(line, "data: ") {
-				msg := strings.TrimPrefix(line, "data: ")
-				if err := handler(json.RawMessage(msg)); err != nil {
-					return err
+			line, err := br.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					// Process any pending event before exit
+					if event != "" && data != "" {
+						if err := handler(json.RawMessage(data)); err != nil {
+							return err
+						}
+					}
+					break
+				}
+				select {
+				case <-c.done:
+					return nil
+				default:
+					fmt.Printf("SSE stream error: %v\n", err)
+					return nil
 				}
 			}
-		}
 
-		if err := scanner.Err(); err != nil {
-			return err
+			// Remove only newline markers
+			line = strings.TrimRight(line, "\r\n")
+			if line == "" {
+				// Empty line means end of event
+				if event != "" && data != "" {
+					if err := handler(json.RawMessage(data)); err != nil {
+						return err
+					}
+					event = ""
+					data = ""
+				}
+				continue
+			}
+
+			if strings.HasPrefix(line, "event:") {
+				event = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+			} else if strings.HasPrefix(line, "data:") {
+				data = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+			}
 		}
-		scanner = nil
-		resp.Body.Close()
-		time.Sleep(2 * time.Second)
 	}
 }
