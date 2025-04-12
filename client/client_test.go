@@ -24,6 +24,7 @@ import (
 func newMockClient() *MCPClient {
 	return &MCPClient{
 		contexts: make(map[string]*mcpctx.Context),
+		done:     make(chan struct{}),
 	}
 }
 
@@ -257,19 +258,8 @@ func (h *MockHandler) Handle(data json.RawMessage) error {
 	return h.ReturnErr
 }
 
-// --- Test Subject Struct ---
-
-// NewTestClient creates a client suitable for testing listen
-func NewTestClient() *MCPClient {
-	return &MCPClient{
-		done: make(chan struct{}),
-	}
-}
-
-// --- Tests ---
-
 func TestListen_HappyPath_SingleEvent(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	mockReader := NewMockReaderCloser("event: message\ndata: {\"key\":\"value\"}\n\n")
 	mockHandler := &MockHandler{}
 
@@ -283,7 +273,7 @@ func TestListen_HappyPath_SingleEvent(t *testing.T) {
 }
 
 func TestListen_HappyPath_MultipleEvents(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	sseData := `
 event: event1
 data: {"id": 1}
@@ -309,7 +299,7 @@ data: {"id": 3}
 }
 
 func TestListen_HandlesCRLF(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	mockReader := NewMockReaderCloser("data: {\"crlf\": true}\r\n\r\n")
 	mockHandler := &MockHandler{}
 
@@ -323,7 +313,7 @@ func TestListen_HandlesCRLF(t *testing.T) {
 }
 
 func TestListen_IgnoresMalformedLines(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	sseData := `
 : comment ignored
 event:
@@ -350,7 +340,7 @@ data: {"num": 123}
 }
 
 func TestListen_ContextCancellation(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	mockReader := NewMockReaderCloser("data: {\"a\": 1}\n\n") // Will provide one event
 	mockReader.EnableBlocking()                               // Make subsequent reads block
 	mockHandler := &MockHandler{}
@@ -387,7 +377,7 @@ func TestListen_ContextCancellation(t *testing.T) {
 }
 
 func TestListen_ClientDoneSignal(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	mockReader := NewMockReaderCloser("data: {\"a\": 1}\n\n")
 	mockReader.EnableBlocking() // Make reads block after first event
 	mockHandler := &MockHandler{}
@@ -417,7 +407,7 @@ func TestListen_ClientDoneSignal(t *testing.T) {
 }
 
 func TestListen_HandlerError(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	mockReader := NewMockReaderCloser("data: {\"process\":\"me\"}\n\n")
 	mockHandler := &MockHandler{}
 	expectedErr := errors.New("handler failed processing")
@@ -434,7 +424,7 @@ func TestListen_HandlerError(t *testing.T) {
 }
 
 func TestListen_ReadError_NonEOF(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	mockReader := NewMockReaderCloser("data: {\"a\": 1}\n\n") // One valid event first
 	expectedErr := errors.New("simulated network glitch")
 	// Program the mock to return an error AFTER the first event's data is read
@@ -459,7 +449,7 @@ func TestListen_ReadError_NonEOF(t *testing.T) {
 }
 
 func TestListen_EOF_CleanExit(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	// EOF occurs right after the final newline of the last event
 	mockReader := NewMockReaderCloser("data: {\"last\": true}\n\n")
 	mockHandler := &MockHandler{}
@@ -474,7 +464,7 @@ func TestListen_EOF_CleanExit(t *testing.T) {
 }
 
 func TestListen_EOF_ProcessesPendingEvent(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	// Stream ends abruptly *without* the final double newline
 	mockReader := NewMockReaderCloser("event: pending\ndata: {\"key\": \"value\"}")
 	mockHandler := &MockHandler{}
@@ -490,7 +480,7 @@ func TestListen_EOF_ProcessesPendingEvent(t *testing.T) {
 }
 
 func TestListen_EOF_ProcessesPendingEvent_HandlerError(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	mockReader := NewMockReaderCloser("event: pending\ndata: {\"key\": \"value\"}")
 	mockHandler := &MockHandler{}
 	expectedErr := errors.New("pending handler failed")
@@ -506,7 +496,7 @@ func TestListen_EOF_ProcessesPendingEvent_HandlerError(t *testing.T) {
 }
 
 func TestListen_EmptyReader(t *testing.T) {
-	client := NewTestClient()
+	client := newMockClient()
 	mockReader := NewMockReaderCloser("") // Empty input
 	mockHandler := &MockHandler{}
 
