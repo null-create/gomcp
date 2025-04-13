@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 
@@ -49,10 +50,8 @@ func (c *MCPClient) Handshake() error {
 		log.Printf("HANDSHAKE COMPLETE: Client Initialized: %v\n", c.state.IsInitialized())
 		log.Printf("Negotiated Protocol Version: %s\n", c.state.GetNegotiatedVersion())
 		log.Println("-------------------------------------")
-
+		return nil
 	} else {
-		return fmt.Errorf("client handshake failed. no negotiated version or server info retrieved")
+		return errors.New("client handshake failed. no negotiated version or server info retrieved")
 	}
-
-	return nil
 }
