@@ -1,11 +1,15 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/gomcp/server"
+
+	"github.com/spf13/cobra"
+)
 
 var (
 	serverCmd = &cobra.Command{
 		Use:   "server",
-		Short: "start the mcp server",
+		Short: "Start the mcp server. Stop with CTRL-C.",
 		Run:   runServerCmd,
 	}
 )
@@ -15,5 +19,6 @@ func init() {
 }
 
 func runServerCmd(cmd *cobra.Command, args []string) {
-
+	svr := server.NewServer()
+	svr.Run()
 }
