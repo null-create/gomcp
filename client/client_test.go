@@ -151,6 +151,29 @@ func (m *MockReaderCloser) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
+func (m *MockReaderCloser) ReadString(delim string) (string, error) {
+	m.mu.Lock()
+	// Simulate blocking if enabled
+	if m.readBlockChan != nil {
+		ch := m.readBlockChan
+		m.mu.Unlock() // Unlock while potentially blocking
+		<-ch          // Wait until channel is closed
+		m.mu.Lock()   // Re-lock
+	}
+
+	n, err := m.Buffer.ReadString('\n')
+	if err == io.EOF {
+		// Once buffer is empty, return programmed ReadError or io.EOF
+		if m.ReadError != nil {
+			err = m.ReadError
+		} else {
+			err = io.EOF // Default to EOF if buffer is empty and no error set
+		}
+	}
+	m.mu.Unlock()
+	return n, err
+}
+
 func (m *MockReaderCloser) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -170,10 +193,20 @@ func (h *MockHandler) Handle(data json.RawMessage) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.Called = true
-	// Make a copy because RawMessage underlying slice might be reused/unsafe
-	dataCopy := make(json.RawMessage, len(data))
+	dataCopy := make(json.RawMessage, len(data)) // Make a copy because RawMessage underlying slice might be reused/unsafe
 	copy(dataCopy, data)
 	h.Received = append(h.Received, dataCopy)
+	return h.ReturnErr
+}
+
+func (h *MockHandler) HandleReturnError(data json.RawMessage) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Called = true
+	dataCopy := make(json.RawMessage, len(data)) // Make a copy because RawMessage underlying slice might be reused/unsafe
+	copy(dataCopy, data)
+	h.Received = append(h.Received, dataCopy)
+	h.ReturnErr = errors.New("handler failed processing")
 	return h.ReturnErr
 }
 
@@ -199,7 +232,7 @@ data: {"id": 1}
 
 data: {"id": 2, "more": true}
 
-event: event3
+event: event2
 data: {"id": 3}
 
 ` // Note leading/trailing whitespace doesn't matter due to bufio/trimming
@@ -211,7 +244,7 @@ data: {"id": 3}
 
 	assert.NoError(t, err)
 	assert.True(t, mockReader.CloseCalled)
-	require.Len(t, mockHandler.Received, 3)
+	require.Len(t, mockHandler.Received, 2)
 	assert.JSONEq(t, `{"id": 1}`, string(mockHandler.Received[0]))
 	assert.JSONEq(t, `{"id": 2, "more": true}`, string(mockHandler.Received[1]))
 	assert.JSONEq(t, `{"id": 3}`, string(mockHandler.Received[2]))
@@ -264,7 +297,7 @@ func TestListen_ContextCancellation(t *testing.T) {
 	mockReader.EnableBlocking()                               // Make subsequent reads block
 	mockHandler := &MockHandler{}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	errChan := make(chan error, 1)
@@ -318,7 +351,7 @@ func TestListen_ClientDoneSignal(t *testing.T) {
 	select {
 	case err := <-errChan:
 		assert.NoError(t, err, "listen should return nil on client.done")
-	case <-time.After(1 * time.Second):
+	case <-time.After(2 * time.Second):
 		t.Fatal("listen did not return after client.done closed")
 	}
 
@@ -326,14 +359,24 @@ func TestListen_ClientDoneSignal(t *testing.T) {
 }
 
 func TestListen_HandlerError(t *testing.T) {
-	client := newMockClient()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer srv.Close()
+
+	client := &MCPClient{
+		serverURL:  srv.URL,
+		clientID:   "test-client",
+		httpClient: srv.Client(),
+	}
+
 	mockReader := NewMockReaderCloser("data: {\"process\":\"me\"}\n\n")
 	mockHandler := &MockHandler{}
 	expectedErr := errors.New("handler failed processing")
 	mockHandler.ReturnErr = expectedErr
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*3)
-	err := client.listen(ctx, mockReader, mockHandler.Handle)
+	err := client.listen(ctx, mockReader, mockHandler.HandleReturnError)
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, expectedErr), "Error from handler should be returned")

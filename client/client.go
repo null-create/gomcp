@@ -5,11 +5,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gomcp/codec"
@@ -20,16 +22,20 @@ import (
 
 // MCPClient implements the MCPClient using Server-Sent Events (SSE).
 type MCPClient struct {
-	mu         sync.Mutex
-	log        *logger.Logger
-	serverURL  string
-	initURL    string
-	clientID   string
-	done       chan struct{}
-	httpClient *http.Client
-	handlers   map[string]chan json.RawMessage
-	contexts   map[string]*mcpctx.Context
-	state      types.Initializer
+	mu          sync.Mutex
+	log         *logger.Logger
+	serverURL   string
+	initURL     string
+	clientID    string
+	requestID   atomic.Int64
+	responses   map[int64]chan codec.JSONRPCResponse
+	done        chan struct{}
+	initialized bool
+	httpClient  *http.Client
+	headers     map[string]string
+	handlers    map[string]chan json.RawMessage
+	contexts    map[string]*mcpctx.Context
+	state       types.Initializer
 }
 
 // Initializes a new Client. Must be followed by a call to client.Handshake()
@@ -48,7 +54,34 @@ func NewMCPClient(serverURL, initURL, clientID string) *MCPClient {
 	}
 }
 
-// Send JSONRPC requests to the server
+func (c *MCPClient) Close() error {
+	select {
+	case <-c.done:
+		return nil // Already closed
+	default:
+		close(c.done)
+	}
+
+	// Clean up any pending responses
+	c.mu.Lock()
+	for _, ch := range c.responses {
+		close(ch)
+	}
+	c.responses = make(map[int64]chan codec.JSONRPCResponse)
+	c.mu.Unlock()
+
+	return nil
+}
+
+func (c *MCPClient) WithHeaders(customHeaders map[string]string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.headers = customHeaders
+}
+
+// Send JSONRPC requests to the server.
+// Does not wait for a response, only checks for the return code.
 func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 	body, err := json.Marshal(data)
 	if err != nil {
@@ -72,7 +105,90 @@ func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 	return nil
 }
 
+// SendRequest sends a JSON-RPC request to the server and waits for a response.
+// Returns the raw JSON response message or an error if the request fails.
+func (c *MCPClient) SendRequest(ctx context.Context, method string, params json.RawMessage) (codec.JSONRPCResponse, error) {
+	if !c.initialized && method != "initialize" {
+		return codec.NewJSONRPCResponse(), errors.New("client not initialized")
+	}
+
+	if c.serverURL == "" {
+		return codec.NewJSONRPCResponse(), errors.New("endpoint not received")
+	}
+
+	id := c.requestID.Add(1)
+
+	request := codec.JSONRPCRequest{
+		JSONRPC: codec.JsonRPCVersion,
+		ID:      id,
+		Method:  method,
+		Params:  params,
+	}
+
+	requestBytes, err := json.Marshal(request)
+	if err != nil {
+		return codec.NewJSONRPCResponse(), fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	responseChan := make(chan codec.JSONRPCResponse, 1)
+	c.mu.Lock()
+	c.responses[id] = responseChan
+	c.mu.Unlock()
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		c.serverURL,
+		bytes.NewReader(requestBytes),
+	)
+	if err != nil {
+		return codec.NewJSONRPCResponse(), fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	for k, v := range c.headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return codec.NewJSONRPCResponse(), fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK &&
+		resp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(resp.Body)
+		return codec.NewJSONRPCResponse(), fmt.Errorf(
+			"request failed with status %d: %s",
+			resp.StatusCode,
+			body,
+		)
+	}
+
+	select {
+	case <-ctx.Done():
+		c.mu.Lock()
+		delete(c.responses, id)
+		c.mu.Unlock()
+		return codec.NewJSONRPCResponse(), ctx.Err()
+	case response := <-responseChan:
+		if response.Error != nil {
+			return codec.NewJSONRPCResponse(), errors.New(response.Error.Msg())
+		}
+		return response, nil
+	}
+}
+
+// Starts the MCP client by requesting a keep-alive connection with the
+// server to receive events from.
 func (c *MCPClient) Start(ctx context.Context) error {
+	// execute initial MCP handshake
+	if err := c.Handshake(); err != nil {
+		return nil
+	}
+
+	// create a keep-alive connection to receive events from
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.serverURL, nil)
 	if err != nil {
 		return err
@@ -91,7 +207,7 @@ func (c *MCPClient) Start(ctx context.Context) error {
 	}
 
 	// start listening for server-side events
-	go c.listen(ctx, resp.Body, nil)
+	go c.listen(ctx, resp.Body, c.handleSSE)
 
 	select {
 	// case <-c.endpointChan:
