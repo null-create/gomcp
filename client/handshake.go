@@ -12,7 +12,7 @@ import (
 // Initial MCP handshake with server.
 func (c *MCPClient) Handshake() error {
 	if c.state == nil {
-		c.state = NewClientState(c.initURL)
+		c.state = NewClientState(c.initURL.String())
 	}
 
 	initReqJSON, err := c.state.CreateInitializeRequest()

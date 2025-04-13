@@ -6,7 +6,7 @@ import (
 )
 
 // Intializer allows us to use real client states as well as mock states for testing.
-type Initializer interface {
+type ClientState interface {
 	CreateInitializeRequest() ([]byte, error)
 	SendInitRequest([]byte) ([]byte, error)
 	ProcessInitializeResponse(codec.JSONRPCResponse) error

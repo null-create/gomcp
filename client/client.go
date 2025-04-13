@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,35 +23,38 @@ import (
 
 // MCPClient implements the MCPClient using Server-Sent Events (SSE).
 type MCPClient struct {
-	mu          sync.Mutex
-	log         *logger.Logger
-	serverURL   string
-	initURL     string
-	clientID    string
-	requestID   atomic.Int64
-	responses   map[int64]chan codec.JSONRPCResponse
-	done        chan struct{}
-	initialized bool
-	httpClient  *http.Client
-	headers     map[string]string
-	handlers    map[string]chan json.RawMessage
-	contexts    map[string]*mcpctx.Context
-	state       types.Initializer
+	mu           sync.Mutex
+	log          *logger.Logger
+	serverURL    *url.URL
+	initURL      *url.URL
+	clientID     string
+	requestID    atomic.Int64
+	responses    map[int64]chan codec.JSONRPCResponse
+	done         chan struct{}
+	endpointChan chan struct{}
+	initialized  bool
+	httpClient   *http.Client
+	headers      map[string]string
+	handlers     map[string]chan json.RawMessage
+	contexts     map[string]*mcpctx.Context
+	state        types.ClientState
 }
 
 // Initializes a new Client. Must be followed by a call to client.Handshake()
 // to establish client state.
-func NewMCPClient(serverURL, initURL, clientID string) *MCPClient {
+func NewMCPClient(serverURL *url.URL, initURL *url.URL, clientID string) *MCPClient {
 	return &MCPClient{
-		log:       logger.NewLogger("MCPClient", clientID),
-		serverURL: serverURL,
-		initURL:   initURL,
-		clientID:  clientID,
-		httpClient: &http.Client{
-			Timeout: time.Second * 30,
-		},
-		handlers: make(map[string]chan json.RawMessage),
-		contexts: make(map[string]*mcpctx.Context),
+		log:          logger.NewLogger("MCPClient", clientID),
+		serverURL:    serverURL,
+		initURL:      initURL,
+		clientID:     clientID,
+		httpClient:   &http.Client{Timeout: time.Second * 30},
+		responses:    make(map[int64]chan codec.JSONRPCResponse),
+		done:         make(chan struct{}),
+		endpointChan: make(chan struct{}),
+		headers:      make(map[string]string),
+		handlers:     make(map[string]chan json.RawMessage),
+		contexts:     make(map[string]*mcpctx.Context),
 	}
 }
 
@@ -73,7 +77,7 @@ func (c *MCPClient) Close() error {
 	return nil
 }
 
-func (c *MCPClient) WithHeaders(customHeaders map[string]string) {
+func (c *MCPClient) AddHeaders(customHeaders map[string]string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -87,7 +91,7 @@ func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, c.serverURL, bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, c.serverURL.String(), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -112,7 +116,7 @@ func (c *MCPClient) SendRequest(ctx context.Context, method string, params json.
 		return codec.NewJSONRPCResponse(), errors.New("client not initialized")
 	}
 
-	if c.serverURL == "" {
+	if c.serverURL.String() == "" {
 		return codec.NewJSONRPCResponse(), errors.New("endpoint not received")
 	}
 
@@ -138,7 +142,7 @@ func (c *MCPClient) SendRequest(ctx context.Context, method string, params json.
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		c.serverURL,
+		c.serverURL.String(),
 		bytes.NewReader(requestBytes),
 	)
 	if err != nil {
@@ -180,16 +184,16 @@ func (c *MCPClient) SendRequest(ctx context.Context, method string, params json.
 	}
 }
 
-// Starts the MCP client by requesting a keep-alive connection with the
-// server to receive events from.
+// Starts the MCP client by initiating the MCP handshake, then requesting
+// a keep-alive connection with the server to receive events from.
 func (c *MCPClient) Start(ctx context.Context) error {
 	// execute initial MCP handshake
 	if err := c.Handshake(); err != nil {
-		return nil
+		return fmt.Errorf("mcp handshake failed: %s", err)
 	}
 
 	// create a keep-alive connection to receive events from
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.serverURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.serverURL.String(), nil)
 	if err != nil {
 		return err
 	}
@@ -210,20 +214,20 @@ func (c *MCPClient) Start(ctx context.Context) error {
 	go c.listen(ctx, resp.Body, c.handleSSE)
 
 	select {
-	// case <-c.endpointChan:
-	// 	// Endpoint received, proceed
+	case <-c.endpointChan:
+		// Endpoint received, proceed
 	case <-ctx.Done():
 		return fmt.Errorf("context cancelled while waiting for endpoint")
 	case <-time.After(30 * time.Second): // Add a timeout
 		return fmt.Errorf("timeout waiting for endpoint")
 	}
 
-	// return nil
+	return nil
 }
 
 // Continually listens for server-side events using the given reader.
 // Processes events with the given handler.
-func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler types.MessageHandler) error {
+func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler types.Handler) error {
 	defer reader.Close()
 
 	br := bufio.NewReader(reader)
@@ -241,7 +245,7 @@ func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler ty
 				if err == io.EOF {
 					// Process any pending event before exit
 					if event != "" && data != "" {
-						if err := handler(json.RawMessage(data)); err != nil {
+						if err := handler(event, data); err != nil {
 							return err
 						}
 					}
@@ -261,7 +265,7 @@ func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler ty
 			if line == "" {
 				// Empty line means end of event
 				if event != "" && data != "" {
-					if err := handler(json.RawMessage(data)); err != nil {
+					if err := handler(event, data); err != nil {
 						return err
 					}
 					event = ""

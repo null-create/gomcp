@@ -5,8 +5,14 @@ import (
 	"time"
 )
 
+// General event/data handler
+type Handler func(event, data string) error
+
 // Message Handlers work with stdio in the Transport layer
-type MessageHandler func(message json.RawMessage) error
+type MessageHandler func(event string, message json.RawMessage) error
+
+// IOHandler works with stdio in the I/O layer
+type IOHandler func(message json.RawMessage) error
 
 // ExecutionStatus indicates the outcome of a tool execution attempt.
 type ExecutionStatus string
