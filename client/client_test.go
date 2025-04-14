@@ -354,7 +354,7 @@ func TestListen_HandlerError(t *testing.T) {
 	client := newMockClient()
 	mockReader := NewMockReaderCloser("event:event1\ndata: {\"process\":\"me\"}\n\n")
 	mockHandler := NewMockHandler()
-	expectedErr := errors.New("handler failed processing")
+	expectedErr := errors.New("listener handler failed: handler failed processing")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
