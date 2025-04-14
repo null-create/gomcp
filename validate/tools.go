@@ -120,38 +120,3 @@ func ValidateToolCallOutput(rawResult string, toolCall msg.ToolCall,
 	}
 	return msg.StatusSucceeded, nil
 }
-
-// --- Example Usage in a hypothetical orchestrator loop ---
-/*
-func handleAssistantMessageWithToolCalls(ctx context.Context, assistantMsg mcp.Message, currentModelContext *mcp.ModelContext, toolExec func(context.Context, string, json.RawMessage) (string, error)) error {
-    if assistantMsg.Role != mcp.RoleAssistant || len(assistantMsg.ToolCalls) == 0 {
-        return nil // Not relevant
-    }
-
-    // Process each requested tool call
-    for _, toolCall := range assistantMsg.ToolCalls {
-        toolResultContent, status, execErr := ValidateAndExecuteTool(
-            ctx,
-            toolCall,
-            currentModelContext.AvailableTools, // Pass the available tools
-            toolExec,                           // Pass the actual executor function
-        )
-
-        // Create a ToolResult message to send back to the LLM
-        // Need a helper like AddToolResultMessage from previous examples
-        // This helper would create a new MCP Message with RoleTool, ToolCallID,
-        // the toolResultContent (or error message), and the status/error metadata.
-        addToolResultMessageToContext(currentModelContext, toolCall.ID, toolResultContent, status, execErr, "", "") // Pass hash/env if calculated
-
-
-		// If a handler error occurred during execution or validation, maybe stop processing further calls?
-		if status != mcp.StatusSucceeded {
-			fmt.Printf("Tool call %s for %s failed with status %s\n", toolCall.ID, toolCall.FunctionName, status)
-			// Decide if one failure stops all subsequent calls in this turn
-			// return execErr // Optionally propagate the error up
-		}
-    }
-	// After processing all calls, the updated context would be sent back to the LLM
-	return nil
-}
-*/
