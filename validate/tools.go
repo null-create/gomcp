@@ -42,8 +42,6 @@ func ValidateToolSchema(
 	if len(toolDesc.InputSchema) > 0 { // Only validate if schema is provided
 		schemaLoader := gojsonschema.NewBytesLoader(toolDesc.InputSchema)
 		documentLoader := gojsonschema.NewBytesLoader(toolCall.Arguments)
-
-		// It's often good to compile schemas once and cache them, but for simplicity:
 		schema, err := gojsonschema.NewSchema(schemaLoader)
 		if err != nil {
 			// Schema itself is invalid! Log this serious config error.
@@ -52,12 +50,11 @@ func ValidateToolSchema(
 
 		result, err := schema.Validate(documentLoader)
 		if err != nil {
-			// Error during validation process itself
 			return msg.StatusError, fmt.Errorf("internal validation error for tool '%s'", toolDesc.Name)
 		}
 
 		if !result.Valid() {
-			// Validation FAILED! Do not execute the tool.
+			// Validation FAILED! Do not execute the tool!
 			var validationErrors []string
 			for _, desc := range result.Errors() {
 				validationErrors = append(validationErrors, fmt.Sprintf("- %s", desc))
@@ -67,7 +64,6 @@ func ValidateToolSchema(
 			fmt.Println("SECURITY ALERT:", errorMsg) // Log prominently
 			return msg.StatusFailed, errors.New(errorMsg)
 		}
-		// --- Validation Passed ---
 		fmt.Printf("Input arguments for tool '%s' validated successfully.\n", toolDesc.Name)
 	} else {
 		fmt.Printf("WARNING: No InputSchema defined for tool '%s'. Skipping input validation.\n", toolDesc.Name)
