@@ -60,6 +60,14 @@ type ToolCall struct {
 	Arguments    json.RawMessage `json:"arguments"`     // Arguments for the tool, formatted as a JSON object matching the ToolDescription.InputSchema. Use json.RawMessage for flexibility.
 }
 
+type ToolDescription struct {
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	InputSchema  json.RawMessage `json:"input_schema"`            // Expects JSON Schema definition here
+	OutputSchema json.RawMessage `json:"output_schema,omitempty"` // Optional: Schema for the tool's result
+	// Potentially SecurityMetadata for verifying the description itself
+}
+
 // ToolResultMetadata provides details about the execution of a tool.
 // This is embedded within a `Message` where `Role == RoleTool`.
 type ToolResultMetadata struct {
