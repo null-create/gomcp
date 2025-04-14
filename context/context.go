@@ -10,13 +10,14 @@ import (
 
 // Context represents a conversational context with memory, metadata, etc.
 type Context struct {
-	ID         string            `json:"id"`
-	CreatedAt  time.Time         `json:"created_at"`
-	UpdatedAt  time.Time         `json:"updated_at"`
-	Memory     []*MemoryBlock    `json:"memory"`
-	Messages   []types.Message   `json:"messages"`
-	Metadata   map[string]string `json:"metadata,omitempty"`
-	IsArchived bool              `json:"is_archived"`
+	ID             string            `json:"id"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
+	Memory         []*MemoryBlock    `json:"memory"`
+	Messages       []types.Message   `json:"messages"`
+	Metadata       map[string]string `json:"metadata,omitempty"`
+	IsArchived     bool              `json:"is_archived"`
+	AvailableTools []types.ToolDescription
 }
 
 // ContextUpdate represents an update request to an existing context.
