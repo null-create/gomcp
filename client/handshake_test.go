@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/gomcp/codec"
@@ -82,9 +83,8 @@ func TestHandshake_Success(t *testing.T) {
 	mockState.On("CreateInitializedNotification").Return([]byte(`{"jsonrpc":"2.0","method":"initialized"}`), nil)
 	mockState.On("SendInitNotification", mock.Anything).Return([]byte(`{}`), nil)
 
-	client := &MCPClient{
-		initURL: "http://test-server/init",
-	}
+	url, _ := url.Parse("http://test-server/init")
+	client := &MCPClient{initURL: url}
 	client.SetClientState(mockState) // assume this sets `cs` in test mode
 
 	// simulate success by setting negotiated version + server info
@@ -100,7 +100,9 @@ func TestHandshake_CreateRequestFails(t *testing.T) {
 	mockState := new(MockClientState)
 	mockState.On("CreateInitializeRequest", mock.Anything).Return(nil, errors.New("fail to build"))
 
-	client := &MCPClient{initURL: "bad"}
+	url, _ := url.Parse("bad")
+
+	client := &MCPClient{initURL: url}
 	client.SetClientState(mockState)
 
 	err := client.Handshake()

@@ -34,11 +34,20 @@ func (j *JSONRPCResponse) Bytes() []byte {
 	return b
 }
 
+func NewJSONRPCResponse() JSONRPCResponse {
+	return JSONRPCResponse{
+		JSONRPC: JsonRPCVersion,
+	}
+}
+
 type RPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 }
+
+func (r *RPCError) ErrCode() int { return r.Code }
+func (r *RPCError) Msg() string  { return r.Message }
 
 type Notification struct {
 	JSONRPC string          `json:"jsonrpc"`

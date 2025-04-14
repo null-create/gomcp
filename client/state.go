@@ -63,7 +63,7 @@ func (cs *ClientState) SetServerInfo(info *mcp.ServerInfo) { cs.ServerInfo = inf
 func (cs *ClientState) SetInitialized(init bool)           { cs.Initialized = init }
 
 // Set the MCP client state. Mainly used for testing.
-func (c *MCPClient) SetClientState(state types.Initializer) { c.state = state }
+func (c *MCPClient) SetClientState(state types.ClientState) { c.state = state }
 
 // ======= Client State Handshake methods ====== //
 

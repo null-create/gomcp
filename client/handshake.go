@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 
@@ -11,7 +12,7 @@ import (
 // Initial MCP handshake with server.
 func (c *MCPClient) Handshake() error {
 	if c.state == nil {
-		c.state = NewClientState(c.initURL)
+		c.state = NewClientState(c.initURL.String())
 	}
 
 	initReqJSON, err := c.state.CreateInitializeRequest()
@@ -43,17 +44,14 @@ func (c *MCPClient) Handshake() error {
 		if err != nil {
 			return fmt.Errorf("client failed to send init notification: %s", err)
 		}
-		// c.state = &cs // Save state
 
 		//  Handshake Complete
 		log.Println("-------------------------------------")
 		log.Printf("HANDSHAKE COMPLETE: Client Initialized: %v\n", c.state.IsInitialized())
 		log.Printf("Negotiated Protocol Version: %s\n", c.state.GetNegotiatedVersion())
 		log.Println("-------------------------------------")
-
+		return nil
 	} else {
-		return fmt.Errorf("client handshake failed. no negotiated version or server info retrieved")
+		return errors.New("client handshake failed. no negotiated version or server info retrieved")
 	}
-
-	return nil
 }

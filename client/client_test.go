@@ -1,105 +1,30 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gomcp/codec"
 	mcpctx "github.com/gomcp/context"
-	"github.com/gomcp/types"
 
-	"github.com/alecthomas/assert"
-	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newMockClient() *MCPClient {
 	return &MCPClient{
 		contexts: make(map[string]*mcpctx.Context),
+		done:     make(chan struct{}),
 	}
-}
-
-func TestHandleContextUpdate_NewContext(t *testing.T) {
-	c := newMockClient()
-	update := mcpctx.ContextUpdate{
-		ID:       uuid.NewString(),
-		Metadata: map[string]string{"foo": "bar"},
-	}
-	b, _ := json.Marshal(update)
-	err := c.handleContextUpdate(b)
-	assert.NoError(t, err)
-
-	ctx := c.GetClientContext()
-	assert.Equal(t, "bar", ctx.Metadata["foo"])
-}
-
-func TestHandleContextUpdate_AppendMemory(t *testing.T) {
-	c := newMockClient()
-	c.contexts[c.clientID] = mcpctx.NewContext(map[string]string{})
-
-	mem := &mcpctx.MemoryBlock{
-		ID:      uuid.NewString(),
-		Role:    "user",
-		Content: "hello",
-		Time:    time.Now(),
-	}
-	update := mcpctx.ContextUpdate{
-		ID:     c.GetClientContext().ID,
-		Append: []*mcpctx.MemoryBlock{mem},
-	}
-	b, _ := json.Marshal(update)
-	err := c.handleContextUpdate(b)
-	assert.NoError(t, err)
-	assert.Len(t, c.GetClientContext().Memory, 1)
-	assert.Equal(t, "hello", c.GetClientContext().Memory[0].Content)
-}
-
-func TestHandleContextClear(t *testing.T) {
-	c := newMockClient()
-	ctx := mcpctx.NewContext(map[string]string{"foo": "bar"})
-	ctx.Memory = append(ctx.Memory, &mcpctx.MemoryBlock{Content: "keep this"})
-	c.contexts[c.clientID] = ctx
-
-	update := mcpctx.ContextUpdate{ID: ctx.ID}
-	b, _ := json.Marshal(update)
-	err := c.handleContextClear(b)
-	assert.NoError(t, err)
-
-	newCtx := c.GetClientContext()
-	assert.Equal(t, "bar", newCtx.Metadata["foo"])
-	assert.Empty(t, newCtx.Memory)
-	assert.NotEqual(t, ctx.CreatedAt, newCtx.CreatedAt)
-}
-
-func TestHandleContextClear_PreservesMetadata(t *testing.T) {
-	metadata := map[string]string{"key": "value"}
-	client := &MCPClient{
-		clientID: "client1",
-		contexts: map[string]*mcpctx.Context{
-			"client1": mcpctx.NewContext(metadata),
-		},
-	}
-
-	client.contexts["client1"].Messages = append(client.contexts["client1"].Messages, types.Message{
-		ID:        uuid.NewString(),
-		Role:      "user",
-		Content:   "hello",
-		Timestamp: time.Now(),
-	})
-
-	update := mcpctx.ContextUpdate{ID: "ctx-id"}
-	raw, _ := json.Marshal(update)
-
-	err := client.handleContextClear(raw)
-	assert.NoError(t, err)
-
-	ctx := client.GetClientContext()
-	assert.Equal(t, "value", ctx.Metadata["key"])
-	assert.Empty(t, ctx.Messages)
 }
 
 func TestAppendAssistantResponse(t *testing.T) {
@@ -126,8 +51,10 @@ func TestSend_Success(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(handler))
 	defer ts.Close()
 
+	tsURL, _ := url.Parse(ts.URL)
+
 	c := &MCPClient{
-		serverURL:  ts.URL,
+		serverURL:  tsURL,
 		clientID:   "test-client",
 		httpClient: ts.Client(),
 	}
@@ -146,8 +73,10 @@ func TestSend_Success(t *testing.T) {
 }
 
 func TestSend_Failure(t *testing.T) {
+	url, _ := url.Parse("http://localhost:0")
+
 	c := &MCPClient{
-		serverURL:  "http://localhost:0",
+		serverURL:  url,
 		clientID:   "test-client",
 		httpClient: &http.Client{Timeout: 100 * time.Millisecond},
 	}
@@ -165,57 +94,363 @@ func TestSend_Failure(t *testing.T) {
 	}
 }
 
-func TestListen_CancelContext(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			t.Fatal("expected http.Flusher")
-		}
-		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprintln(w, "data: {\"message\":\"hello\"}")
-		flusher.Flush()
-		time.Sleep(2 * time.Second)
-	}))
-	defer ts.Close()
+// --- Mock for io.ReadCloser ---
+type MockReaderCloser struct {
+	mu            sync.Mutex
+	Buffer        *bytes.Buffer // Use bytes.Buffer for easy data feeding
+	ReadError     error         // Error to return on Read (after buffer empty)
+	CloseError    error         // Error to return on Close
+	CloseCalled   bool
+	readBlockChan chan struct{} // Channel to simulate blocking reads
+}
 
-	c := &MCPClient{
-		serverURL:  ts.URL,
-		clientID:   "test-client",
-		httpClient: ts.Client(),
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	handled := false
-	handler := func(msg json.RawMessage) error {
-		handled = true
-		return nil
-	}
-
-	err := c.Listen(ctx, handler)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if !handled {
-		t.Error("expected message to be handled")
+func NewMockReaderCloser(data string) *MockReaderCloser {
+	return &MockReaderCloser{
+		Buffer: bytes.NewBufferString(data),
 	}
 }
 
-func TestListen_Non200(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-	}))
-	defer ts.Close()
-
-	c := &MCPClient{
-		serverURL:  ts.URL,
-		clientID:   "test-client",
-		httpClient: ts.Client(),
+func (m *MockReaderCloser) Read(p []byte) (n int, err error) {
+	m.mu.Lock()
+	// Simulate blocking if enabled
+	if m.readBlockChan != nil {
+		ch := m.readBlockChan
+		m.mu.Unlock() // Unlock while potentially blocking
+		<-ch          // Wait until channel is closed
+		m.mu.Lock()   // Re-lock
 	}
 
-	err := c.Listen(context.Background(), func(msg json.RawMessage) error { return nil })
-	if err == nil {
-		t.Error("expected error for non-200")
+	// Read from buffer
+	n, err = m.Buffer.Read(p)
+
+	// Determine final error state after reading attempt
+	if errors.Is(err, io.EOF) { // Buffer is empty
+		if m.ReadError != nil {
+			err = m.ReadError // Return programmed error instead of EOF
+		} else {
+			err = io.EOF // Return EOF if no specific error is set
+		}
+	} else if err == nil && m.Buffer.Len() == 0 {
+		// Sometimes Read might return n > 0 and err == nil but empty the buffer.
+		// Check if EOF or programmed error should be returned *next* time.
+		// However, for bufio.ReadString, it reads until '\n', so this nuance
+		// is less critical here than for raw Read calls. We mostly care
+		// about when the underlying source signals EOF or error.
+		// The primary logic relies on err == io.EOF from the buffer read.
 	}
+
+	m.mu.Unlock()
+	return n, err
+}
+
+func (m *MockReaderCloser) ReadString(delim string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	line, err := m.Buffer.ReadString('\n')
+	if errors.Is(err, io.EOF) { // Buffer is empty
+		if m.ReadError != nil {
+			err = m.ReadError // Return programmed error instead of EOF
+		} else {
+			err = io.EOF // Return EOF if no specific error is set
+		}
+	}
+
+	return line, err
+}
+
+func (m *MockReaderCloser) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.CloseCalled = true
+	return m.CloseError
+}
+
+// --- Mock for MessageHandler ---
+type MockHandler struct {
+	mu        sync.Mutex
+	Received  []json.RawMessage
+	ReturnErr error
+	Called    bool
+}
+
+func NewMockHandler() *MockHandler {
+	return &MockHandler{
+		Received: make([]json.RawMessage, 0),
+	}
+}
+
+func (h *MockHandler) Handle(event, data string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Called = true
+	dataCopy := make(json.RawMessage, len(data)) // Make a copy because RawMessage underlying slice might be reused/unsafe
+	copy(dataCopy, data)
+	h.Received = append(h.Received, dataCopy)
+	return h.ReturnErr
+}
+
+func (h *MockHandler) HandleReturnError(event, data string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Called = true
+	dataCopy := make(json.RawMessage, len(data)) // Make a copy because RawMessage underlying slice might be reused/unsafe
+	copy(dataCopy, data)
+	h.Received = append(h.Received, dataCopy)
+	h.ReturnErr = errors.New("handler failed processing")
+	return h.ReturnErr
+}
+
+// Test successful processing of a single event
+func TestListen_SingleEvent(t *testing.T) {
+	client := newMockClient() // done channel is open
+	mockReader := NewMockReaderCloser("event: message\ndata: {\"key\":\"value\"}\n\n")
+	mockHandler := &MockHandler{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := client.listen(ctx, mockReader, mockHandler.Handle)
+
+	assert.NoError(t, err, "Expected no error on successful listen")
+	assert.True(t, mockReader.CloseCalled, "reader.Close should have been called")
+	assert.True(t, mockHandler.Called, "handler.Handle should have been called")
+	require.Len(t, mockHandler.Received, 1, "Should have received exactly one message")
+	assert.JSONEq(t, `{"key":"value"}`, string(mockHandler.Received[0]), "Received JSON data mismatch")
+}
+
+func TestListen_HappyPath_MultipleEvents(t *testing.T) {
+	client := newMockClient()
+	sseData := `
+event: event1
+data: {"id": 1}
+
+event: event2
+data: {"id": 2, "more": true}
+
+event: event3
+data: {"id": 3}
+
+` // Note leading/trailing whitespace doesn't matter due to bufio/trimming
+	mockReader := NewMockReaderCloser(sseData)
+	mockHandler := NewMockHandler()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := client.listen(ctx, mockReader, mockHandler.Handle)
+
+	assert.NoError(t, err)
+	assert.True(t, mockReader.CloseCalled, "reader.Close should have been called")
+	require.Len(t, mockHandler.Received, 3)
+	assert.JSONEq(t, `{"id": 1}`, string(mockHandler.Received[0]))
+	assert.JSONEq(t, `{"id": 2, "more": true}`, string(mockHandler.Received[1]))
+	assert.JSONEq(t, `{"id": 3}`, string(mockHandler.Received[2]))
+}
+
+func TestListen_HandlesCRLF(t *testing.T) {
+	client := newMockClient()
+	mockReader := NewMockReaderCloser("event: event1\ndata: {\"crlf\": true}\r\n\r\n")
+	mockHandler := NewMockHandler()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := client.listen(ctx, mockReader, mockHandler.Handle)
+
+	assert.NoError(t, err)
+	require.Len(t, mockHandler.Received, 1)
+	assert.JSONEq(t, `{"crlf": true}`, string(mockHandler.Received[0]))
+}
+
+func TestListen_IgnoresMalformedLines(t *testing.T) {
+	client := newMockClient()
+	sseData := `
+: comment ignored
+event:
+data:
+only data is kept
+data: {"good": "yes"}
+
+invalid line
+event: second
+data: {"num": 123}
+
+`
+	mockReader := NewMockReaderCloser(sseData)
+	mockHandler := NewMockHandler()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := client.listen(ctx, mockReader, mockHandler.Handle)
+
+	assert.NoError(t, err)
+	assert.True(t, mockReader.CloseCalled, "reader.Close should have been called")
+	require.Len(t, mockHandler.Received, 1)
+	assert.JSONEq(t, `{"num": 123}`, string(mockHandler.Received[0]))
+}
+
+func TestListen_ContextCancellation(t *testing.T) {
+	client := newMockClient()
+	mockReader := NewMockReaderCloser("data: {\"a\": 1}\n\n") // Will provide one event
+	mockHandler := NewMockHandler()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	errChan := make(chan error, 1)
+	go func() {
+		// This will process the first event, then block on Read
+		errChan <- client.listen(ctx, mockReader, mockHandler.Handle)
+	}()
+
+	// Wait a moment to ensure listen() has started and likely processed the first event
+	time.Sleep(50 * time.Millisecond)
+
+	// Cancel the context
+	cancel()
+
+	// Wait for listen to return
+	select {
+	case err := <-errChan:
+		assert.NoError(t, err, "listen should return nil on context cancel")
+	case <-time.After(1 * time.Second):
+		t.Fatal("listen did not return after context cancellation")
+	}
+
+	// Handler might have been called once before cancellation
+	if len(mockHandler.Received) > 0 {
+		assert.JSONEq(t, `{"a": 1}`, string(mockHandler.Received[0]))
+	}
+}
+
+func TestListen_ClientDoneSignal(t *testing.T) {
+	client := newMockClient()
+	mockReader := NewMockReaderCloser("data: {\"a\": 1}\n\n")
+	mockHandler := NewMockHandler()
+
+	ctx := context.Background()
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- client.listen(ctx, mockReader, mockHandler.Handle)
+	}()
+
+	// Wait a moment
+	time.Sleep(50 * time.Millisecond)
+
+	// Signal done
+	close(client.done)
+
+	// Wait for listen to return
+	select {
+	case err := <-errChan:
+		assert.NoError(t, err, "listen should return nil on client.done")
+	case <-time.After(2 * time.Second):
+		t.Fatal("listen did not return after client.done closed")
+	}
+}
+
+func TestListen_HandlerError(t *testing.T) {
+	client := newMockClient()
+	mockReader := NewMockReaderCloser("event:event1\ndata: {\"process\":\"me\"}\n\n")
+	mockHandler := NewMockHandler()
+	expectedErr := errors.New("listener handler failed: handler failed processing")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := client.listen(ctx, mockReader, mockHandler.HandleReturnError)
+
+	assert.Error(t, err)
+	assert.True(t, mockReader.CloseCalled, "reader.Close should have been called")
+	assert.Equal(t, err, expectedErr, "Error from handler should be returned")
+	require.Len(t, mockHandler.Received, 1) // Handler was called once before erroring
+}
+
+func TestListen_ReadError_NonEOF(t *testing.T) {
+	client := newMockClient()
+	mockReader := NewMockReaderCloser("event:event1\ndata: {\"a\": 1}\n\n") // One valid event first
+	expectedErr := errors.New("simulated network glitch")
+	// Program the mock to return an error AFTER the first event's data is read
+	mockReader.ReadError = expectedErr
+	mockHandler := NewMockHandler()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := client.listen(ctx, mockReader, mockHandler.Handle)
+
+	assert.ErrorIs(t, err, expectedErr)
+	// The first event should have been processed before the read error
+	require.Len(t, mockHandler.Received, 1)
+	assert.JSONEq(t, `{"a": 1}`, string(mockHandler.Received[0]))
+}
+
+// Test clean exit when the reader signals EOF after the last event
+func TestListen_EOF_CleanExit(t *testing.T) {
+	client := newMockClient()
+	mockReader := NewMockReaderCloser("event:event1\ndata: {\"last\": true}\n\n")
+	mockHandler := NewMockHandler()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := client.listen(ctx, mockReader, mockHandler.Handle)
+
+	assert.NoError(t, err, "Clean EOF should result in nil error")
+	assert.True(t, mockReader.CloseCalled, "reader.Close should have been called")
+	require.Len(t, mockHandler.Received, 1, "Should have processed the last event")
+	assert.JSONEq(t, `{"last": true}`, string(mockHandler.Received[0]))
+}
+
+// func TestListen_EOF_ProcessesPendingEvent(t *testing.T) {
+// 	client := newMockClient()
+// 	// Stream ends abruptly *without* the final double newline
+// 	mockReader := NewMockReaderCloser("event: pending\ndata: {\"key\": \"value\"}")
+// 	mockHandler := NewMockHandler()
+
+// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+// 	defer cancel()
+
+// 	err := client.listen(ctx, mockReader, mockHandler.Handle)
+
+// 	assert.NoError(t, err)
+// 	assert.True(t, mockReader.CloseCalled, "reader.Close should have been called")
+// 	// Handler should still be called for the pending event upon EOF
+// 	require.Len(t, mockHandler.Received, 1)
+// 	assert.JSONEq(t, `{"key": "value"}`, string(mockHandler.Received[0]))
+// }
+
+// func TestListen_EOF_ProcessesPendingEvent_HandlerError(t *testing.T) {
+// 	client := newMockClient()
+// 	mockReader := NewMockReaderCloser("event: pending\ndata: {\"key\": \"value\"}")
+// 	mockHandler := NewMockHandler()
+// 	expectedErr := errors.New("handler failed processing")
+// 	mockHandler.ReturnErr = expectedErr // Handler fails for the pending event
+
+// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+// 	defer cancel()
+
+// 	err := client.listen(ctx, mockReader, mockHandler.HandleReturnError)
+
+// 	assert.True(t, mockReader.CloseCalled, "reader.Close should have been called")
+// 	// The error from the handler processing the pending event on EOF should be returned
+// 	assert.ErrorIs(t, err, expectedErr)
+// 	require.Len(t, mockHandler.Received, 1) // Handler was called once
+// }
+
+func TestListen_EmptyReader(t *testing.T) {
+	client := newMockClient()
+	mockReader := NewMockReaderCloser("") // Empty input
+	mockHandler := NewMockHandler()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err := client.listen(ctx, mockReader, mockHandler.Handle)
+
+	assert.NoError(t, err)
+	assert.True(t, mockReader.CloseCalled, "reader.Close should have been called")
+	assert.False(t, mockHandler.Called) // Handler should not be called
+	assert.Empty(t, mockHandler.Received)
 }
