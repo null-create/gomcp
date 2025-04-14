@@ -30,9 +30,6 @@ type Request struct {
 	Params any    `json:"params,omitempty"`
 }
 
-// Result is a successful response to a Request.
-type Result map[string]any
-
 // Error represents a failure in handling a Request.
 type Error struct {
 	Code    int    `json:"code"`
