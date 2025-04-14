@@ -259,7 +259,7 @@ func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler ty
 				case <-c.done:
 					return nil
 				default:
-					return fmt.Errorf("SSE stream error: %v", err)
+					return err
 				}
 			}
 

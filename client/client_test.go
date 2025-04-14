@@ -380,12 +380,7 @@ func TestListen_ReadError_NonEOF(t *testing.T) {
 
 	err := client.listen(ctx, mockReader, mockHandler.Handle)
 
-	// IMPORTANT: Current listen implementation prints the error but returns nil.
-	// Test reflects this actual behavior. If desired, modify listen to return the error.
-	assert.NoError(t, err, "listen currently returns nil even on non-EOF read errors")
-	// If you modify listen to return the error, change the assertion to:
-	// assert.ErrorIs(t, err, expectedErr)
-
+	assert.ErrorIs(t, err, expectedErr)
 	// The first event should have been processed before the read error
 	require.Len(t, mockHandler.Received, 1)
 	assert.JSONEq(t, `{"a": 1}`, string(mockHandler.Received[0]))
