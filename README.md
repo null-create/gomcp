@@ -93,17 +93,16 @@ Want to contribute or discuss ideas? Open an issue or start a discussion!
 ## 📂 Project Structure
 
 ```
-/mcp
-  /auth          # JWT implementations
-  /backend       # Storage plugins
-  /client        # MCP client implementation
-  /cmd           # CLI command implementations
-  /codec         # JSON/MsgPack (de)serialization
-  /context       # Context structure definitions
-  /docs          # Project documentation
-  /logger        # Logger module
-  /mcp           # MCP type and structure definitions
-  /server        # MCP server implemnentation
-  /types         # Common type definitions
-  /validate      # Validation tool implementations
+/auth          # JWT implementations
+/backend       # Storage plugins
+/client        # MCP client implementation
+/cmd           # CLI command implementations
+/codec         # JSON/MsgPack (de)serialization
+/context       # Context structure definitions
+/docs          # Project documentation
+/logger        # Logger module
+/mcp           # MCP type and structure definitions
+/server        # MCP server implemnentation
+/types         # Common type definitions
+/validate      # Validation tool implementations
 ```
