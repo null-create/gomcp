@@ -211,7 +211,11 @@ func (c *MCPClient) Start(ctx context.Context) error {
 	}
 
 	// start listening for server-side events
-	go c.listen(ctx, resp.Body, c.handleSSE)
+	go func() {
+		if err := c.listen(ctx, resp.Body, c.handleSSE); err != nil {
+			c.log.Error(fmt.Sprintf("SSE event listener failed: %v", err))
+		}
+	}()
 
 	select {
 	case <-c.endpointChan:
@@ -246,7 +250,7 @@ func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler ty
 					// Process any pending event before exit
 					if event != "" && data != "" {
 						if err := handler(event, data); err != nil {
-							return err
+							return fmt.Errorf("listener handler failed: %v", err)
 						}
 					}
 					break
@@ -255,8 +259,7 @@ func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler ty
 				case <-c.done:
 					return nil
 				default:
-					fmt.Printf("SSE stream error: %v\n", err)
-					return nil
+					return fmt.Errorf("SSE stream error: %v", err)
 				}
 			}
 
@@ -266,7 +269,7 @@ func (c *MCPClient) listen(ctx context.Context, reader io.ReadCloser, handler ty
 				// Empty line means end of event
 				if event != "" && data != "" {
 					if err := handler(event, data); err != nil {
-						return err
+						return fmt.Errorf("listener handler failed: %v", err)
 					}
 					event = ""
 					data = ""
