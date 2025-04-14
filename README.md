@@ -94,14 +94,16 @@ Want to contribute or discuss ideas? Open an issue or start a discussion!
 
 ```
 /mcp
-  /models        # Core structs (Context, MemoryBlock, Update)
-  /client        # MCP client implementation
-  /codec         # JSON/MsgPack (de)serialization
-  /contextmodel  # Context structure definitions
-  /handlers      # Client and Server handlers
-  /server        # MCP server implemnentation
+  /auth          # JWT implementations
   /backend       # Storage plugins
-  /sse           # SSE implementations
-  /stdio         # STDIO implementations
-  /types         # Type definitions
+  /client        # MCP client implementation
+  /cmd           # CLI command implementations
+  /codec         # JSON/MsgPack (de)serialization
+  /context       # Context structure definitions
+  /docs          # Project documentation
+  /logger        # Logger module
+  /mcp           # MCP type and structure definitions
+  /server        # MCP server implemnentation
+  /types         # Common type definitions
+  /validate      # Validation tool implementations
 ```
