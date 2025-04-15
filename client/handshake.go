@@ -10,6 +10,8 @@ import (
 )
 
 // Initial MCP handshake with server.
+//
+// https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle/#initialization
 func (c *MCPClient) Handshake() error {
 	if c.state == nil {
 		c.state = NewClientState(c.initURL.String())
