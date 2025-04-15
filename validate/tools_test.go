@@ -184,8 +184,8 @@ func TestValidateToolSchema(t *testing.T) {
 				Arguments:    json.RawMessage(`{"any": "data"}`),
 			},
 			availableTools: availableToolsFixture,
-			expectedStatus: msg.StatusSucceeded, // Should succeed, skipping validation
-			expectError:    false,
+			expectedStatus: msg.StatusFailed,
+			expectError:    true,
 		},
 		{
 			name: "Invalid Input Schema Syntax",

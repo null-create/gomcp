@@ -100,32 +100,7 @@ func (cs *ClientState) CreateInitializeRequest() ([]byte, error) {
 }
 
 func (cs *ClientState) SendInitRequest(initRequest []byte) ([]byte, error) {
-	body, err := json.Marshal(initRequest)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequest(http.MethodPost, cs.initURL, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := cs.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusNoContent {
-		return nil, fmt.Errorf("unexpected status: %s", resp.Status)
-	}
-	defer resp.Body.Close()
-
-	var data bytes.Buffer
-	_, err = io.Copy(&data, resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return data.Bytes(), nil
+	return cs.send(initRequest)
 }
 
 func (cs *ClientState) ProcessInitializeResponse(resp codec.JSONRPCResponse) error {
@@ -186,25 +161,33 @@ func (cs *ClientState) CreateInitializedNotification() ([]byte, error) {
 }
 
 func (cs *ClientState) SendInitNotification(notification []byte) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodPost, cs.initURL, bytes.NewReader((notification)))
+	return cs.send(notification)
+}
+
+func (cs *ClientState) send(msg []byte) ([]byte, error) {
+	body, err := json.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
+	req, err := http.NewRequest(http.MethodPost, cs.initURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := cs.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send init notification: %s", err)
+		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("received non-200 response: %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusNoContent {
+		return nil, fmt.Errorf("unexpected status: %s", resp.Status)
 	}
 	defer resp.Body.Close()
 
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, resp.Body)
+	var data bytes.Buffer
+	_, err = io.Copy(&data, resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse response body: %s", err)
+		return nil, err
 	}
-
-	return buf.Bytes(), nil
+	return data.Bytes(), nil
 }
