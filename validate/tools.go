@@ -27,7 +27,7 @@ func FindToolDescription(name string, availableTools []msg.ToolDescription) (*ms
 
 // ValidateToolSchema is called by the orchestrator when an LLM requests a tool call.
 func ValidateToolSchema(
-	ctx context.Context, // Pass context for cancellation during execution
+	ctx context.Context,
 	toolCall msg.ToolCall,
 	availableTools []msg.ToolDescription,
 ) (executionStatus msg.ExecutionStatus, execErr error) {
@@ -66,14 +66,17 @@ func ValidateToolSchema(
 		}
 		fmt.Printf("Input arguments for tool '%s' validated successfully.\n", toolDesc.Name)
 	} else {
-		fmt.Printf("WARNING: No InputSchema defined for tool '%s'. Skipping input validation.\n", toolDesc.Name)
+		return msg.StatusFailed, fmt.Errorf("no InputSchema defined for tool '%s'", toolDesc.Name)
 	}
 
 	return msg.StatusSucceeded, nil
 }
 
-func ValidateToolCallOutput(rawResult string, toolCall msg.ToolCall,
-	availableTools []msg.ToolDescription) (msg.ExecutionStatus, error) {
+func ValidateToolCallOutput(
+	rawResult string,
+	toolCall msg.ToolCall,
+	availableTools []msg.ToolDescription,
+) (msg.ExecutionStatus, error) {
 	toolDesc, err := FindToolDescription(toolCall.FunctionName, availableTools)
 	if err != nil {
 		return msg.StatusError, fmt.Errorf("tool description lookup failed: %w", err)
@@ -81,14 +84,12 @@ func ValidateToolCallOutput(rawResult string, toolCall msg.ToolCall,
 
 	if len(toolDesc.OutputSchema) > 0 {
 		outputSchemaLoader := gojsonschema.NewBytesLoader(toolDesc.OutputSchema)
-		outputDocumentLoader := gojsonschema.NewStringLoader(rawResult) // Assume result is JSON string
+		outputDocumentLoader := gojsonschema.NewStringLoader(rawResult)
 
 		outputSchema, err := gojsonschema.NewSchema(outputSchemaLoader)
 		if err != nil {
-			// Schema itself is invalid! Log this serious config error.
+			// Schema itself is invalid!
 			fmt.Printf("ERROR: Invalid OutputSchema for tool '%s': %v\n", toolDesc.Name, err)
-			// Decide how to handle: return error, return raw result anyway?
-			// For security, maybe return an error.
 			return msg.StatusError, fmt.Errorf("internal output schema error for tool '%s'", toolDesc.Name)
 		}
 
