@@ -177,7 +177,7 @@ func Secure(data any, encryptionKey, signingKey []byte) ([]byte, error) {
 // 'securedData' is the raw bytes received from transport (marshalled SecuredPayload).
 // 'target' must be a pointer to the expected struct type (e.g., *mcp.Context).
 func ValidateAndOpen(securedData []byte, encryptionKey, signingKey []byte, target any) error {
-	if securedData == nil || len(securedData) == 0 {
+	if len(securedData) == 0 {
 		return fmt.Errorf("%w: input securedData cannot be empty", ErrInvalidInput)
 	}
 	if target == nil {
