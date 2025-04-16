@@ -126,7 +126,7 @@ func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 //
 // https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#sending-messages-to-the-server
 func (c *MCPClient) SendRequest(ctx context.Context, method string, params json.RawMessage) (codec.JSONRPCResponse, error) {
-	if !c.initialized && method != "initialize" {
+	if !c.initialized {
 		return codec.NewJSONRPCResponse(), errors.New("client not initialized")
 	}
 
