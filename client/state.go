@@ -21,11 +21,11 @@ import (
 type ClientState struct {
 	initURL           string
 	SupportedVersions []string
-	Info              mcp.ClientInfo
+	ClientInfo        mcp.ClientInfo
 	Capabilities      mcp.ClientCapabilities
 	NegotiatedVersion string
-	ServerCaps        *mcp.ServerCapabilities
 	ServerInfo        *mcp.ServerInfo
+	ServerCaps        *mcp.ServerCapabilities
 	Initialized       bool
 	log               *logger.Logger
 	httpClient        http.Client
@@ -35,7 +35,7 @@ func NewClientState(initUrl string) *ClientState {
 	return &ClientState{
 		initURL:           initUrl,
 		SupportedVersions: []string{"2024-10-01", "2024-11-05"}, // Client supports two versions, latest is 2024-11-05
-		Info: mcp.ClientInfo{
+		ClientInfo: mcp.ClientInfo{
 			Name:    "Client",
 			Version: "1.0.0",
 		},
@@ -43,8 +43,8 @@ func NewClientState(initUrl string) *ClientState {
 			Roots:    &mcp.RootCapabilities{ListChanged: true},
 			Sampling: &mcp.SamplingCapabilities{}, // Indicate support with empty struct pointer
 		},
-		ServerCaps: &mcp.ServerCapabilities{},
 		ServerInfo: &mcp.ServerInfo{},
+		ServerCaps: &mcp.ServerCapabilities{},
 		httpClient: http.Client{
 			Timeout: time.Second * 30,
 		},
@@ -77,7 +77,7 @@ func (cs *ClientState) CreateInitializeRequest() ([]byte, error) {
 	params := mcp.InitializeParams{
 		ProtocolVersion: offeredVersion,
 		Capabilities:    cs.Capabilities,
-		ClientInfo:      cs.Info,
+		ClientInfo:      cs.ClientInfo,
 	}
 
 	paramsJSON, err := json.Marshal(params)
