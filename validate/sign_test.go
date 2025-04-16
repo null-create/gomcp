@@ -1,4 +1,3 @@
-// validate_test.go
 package validate
 
 import (
