@@ -11,7 +11,7 @@ import (
 
 // Initial MCP handshake with server.
 //
-// https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle/#initialization
+// https://modelcontextprotocol.io/specification/2025-03-26/basic/lifecycle#initialization
 func (c *MCPClient) Handshake() error {
 	if c.state == nil {
 		c.state = NewClientState(c.initURL.String())
@@ -52,6 +52,7 @@ func (c *MCPClient) Handshake() error {
 		log.Printf("HANDSHAKE COMPLETE: Client Initialized: %v\n", c.state.IsInitialized())
 		log.Printf("Negotiated Protocol Version: %s\n", c.state.GetNegotiatedVersion())
 		log.Println("-------------------------------------")
+		c.initialized = true
 		return nil
 	} else {
 		return errors.New("client handshake failed. no negotiated version or server info retrieved")

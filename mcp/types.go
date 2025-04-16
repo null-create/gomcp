@@ -43,6 +43,7 @@ type ClientCapabilities struct {
 }
 
 func NewClientCapabilities() ClientCapabilities {
+	// TODO: populate from a pre-existing json file
 	return ClientCapabilities{
 		Roots:        &RootCapabilities{ListChanged: true},
 		Sampling:     &SamplingCapabilities{},
@@ -64,13 +65,23 @@ type ClientInfo struct {
 	Version string `json:"version"`
 }
 
-func NewClientInfo() ClientInfo {
-	return ClientInfo{}
+func NewClientInfo(name, version string) ClientInfo {
+	return ClientInfo{
+		Name:    name,
+		Version: version,
+	}
 }
 
 type ServerInfo struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
+}
+
+func NewServerInfo(name, version string) ServerInfo {
+	return ServerInfo{
+		Name:    name,
+		Version: version,
+	}
 }
 
 // Initialize Request/Response Payloads

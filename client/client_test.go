@@ -54,9 +54,10 @@ func TestSend_Success(t *testing.T) {
 	tsURL, _ := url.Parse(ts.URL)
 
 	c := &MCPClient{
-		serverURL:  tsURL,
-		clientID:   "test-client",
-		httpClient: ts.Client(),
+		serverURL:   tsURL,
+		clientID:    "test-client",
+		httpClient:  ts.Client(),
+		initialized: true,
 	}
 
 	req := codec.JSONRPCRequest{

@@ -60,8 +60,6 @@ func main() {
 	log.Printf("Secured Payload (Base64): %s\n", base64.StdEncoding.EncodeToString(securedBytes))
 	fmt.Println("---")
 
-	// --- Simulate Transport (securedBytes would be sent/received) ---
-
 	// --- Validate and Open the Data ---
 	log.Println("Validating and opening received payload...")
 	var receivedContext context.Context // Target struct to unmarshal into

@@ -18,6 +18,7 @@ import (
 	"github.com/gomcp/codec"
 	mcpctx "github.com/gomcp/context"
 	"github.com/gomcp/logger"
+	"github.com/gomcp/mcp"
 	"github.com/gomcp/types"
 )
 
@@ -84,9 +85,19 @@ func (c *MCPClient) AddHeaders(customHeaders map[string]string) {
 	c.headers = customHeaders
 }
 
+// Ping the MCP server
+func (c *MCPClient) Ping() error {
+	_, err := c.SendRequest(context.Background(), mcp.MethodPing, nil)
+	return err
+}
+
 // Send JSONRPC requests to the server.
 // Does not wait for a response, only checks for the return code.
 func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
+	if !c.initialized {
+		return errors.New("client not initialized")
+	}
+
 	body, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -110,9 +121,12 @@ func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
 }
 
 // SendRequest sends a JSON-RPC request to the server and waits for a response.
-// Returns the raw JSON response message or an error if the request fails.
+// Returns the raw JSON response message or an error if the request fails. Creates
+// a dedicated response channel to receive responses with.
+//
+// https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#sending-messages-to-the-server
 func (c *MCPClient) SendRequest(ctx context.Context, method string, params json.RawMessage) (codec.JSONRPCResponse, error) {
-	if !c.initialized && method != "initialize" {
+	if !c.initialized {
 		return codec.NewJSONRPCResponse(), errors.New("client not initialized")
 	}
 
@@ -149,7 +163,7 @@ func (c *MCPClient) SendRequest(ctx context.Context, method string, params json.
 		return codec.NewJSONRPCResponse(), fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream,application/json")
 	for k, v := range c.headers {
 		req.Header.Set(k, v)
 	}
@@ -192,12 +206,12 @@ func (c *MCPClient) Start(ctx context.Context) error {
 		return fmt.Errorf("mcp handshake failed: %s", err)
 	}
 
-	// create a keep-alive connection to receive events from
+	// create a keep-alive connection to receive events from the server.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.serverURL.String(), nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Accept", "text/event-stream,application/json")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
 
