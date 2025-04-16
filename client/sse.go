@@ -23,7 +23,7 @@ func (c *MCPClient) handleSSE(event, data string) error {
 	case "message":
 
 	default:
+		c.log.Warn(fmt.Sprintf("unknown server event: %s", event))
 	}
-
 	return nil
 }
