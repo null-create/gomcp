@@ -84,6 +84,7 @@ func (c *MCPClient) AddHeaders(customHeaders map[string]string) {
 	c.headers = customHeaders
 }
 
+// Ping the MCP server
 func (c *MCPClient) Ping() error {
 	req, err := http.NewRequest(http.MethodGet, c.serverURL.String(), nil)
 	if err != nil {
