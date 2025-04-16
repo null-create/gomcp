@@ -22,7 +22,7 @@ func generateKey(size int) ([]byte, error) {
 	return key, nil
 }
 
-func main() {
+func ContextSigning() {
 	// --- Key Generation (IMPORTANT: In production, use secure key management!) ---
 	// Generate securely random keys ONCE and store/distribute them securely.
 	// DO NOT generate keys every time like this example.
