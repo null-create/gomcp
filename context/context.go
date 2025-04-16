@@ -1,6 +1,7 @@
 package context
 
 import (
+	"maps"
 	"time"
 
 	"github.com/gomcp/types"
@@ -20,6 +21,17 @@ type Context struct {
 	AvailableTools []types.ToolDescription
 }
 
+// NewContext creates a new Context with the given ID and optional metadata.
+func NewContext(metadata map[string]string) *Context {
+	return &Context{
+		ID:        uuid.NewString(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Memory:    make([]*MemoryBlock, 0),
+		Metadata:  metadata,
+	}
+}
+
 // ContextUpdate represents an update request to an existing context.
 type ContextUpdate struct {
 	ID       string            `json:"id"`
@@ -29,7 +41,10 @@ type ContextUpdate struct {
 }
 
 func NewContextUpdate() ContextUpdate {
-	return ContextUpdate{}
+	return ContextUpdate{
+		Metadata: make(map[string]string),
+		Append:   make([]*MemoryBlock, 0),
+	}
 }
 
 // MemoryBlock represents a single unit of contextual memory within a conversation.
@@ -44,23 +59,10 @@ func (m *MemoryBlock) UpdateContent(newContent string) {
 	m.Content = newContent
 }
 
-// NewContext creates a new Context with the given ID and optional metadata.
-func NewContext(metadata map[string]string) *Context {
-	return &Context{
-		ID:        uuid.NewString(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		Memory:    []*MemoryBlock{},
-		Metadata:  metadata,
-	}
-}
-
 // ApplyUpdate modifies the context based on the update request.
 func (ctx *Context) ApplyUpdate(update ContextUpdate) {
 	if update.Metadata != nil {
-		for k, v := range update.Metadata {
-			ctx.Metadata[k] = v
-		}
+		maps.Copy(ctx.Metadata, update.Metadata)
 	}
 	if update.Append != nil {
 		ctx.Memory = append(ctx.Memory, update.Append...)

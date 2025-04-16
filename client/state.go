@@ -35,16 +35,10 @@ func NewClientState(initUrl string) *ClientState {
 	return &ClientState{
 		initURL:           initUrl,
 		SupportedVersions: []string{"2024-10-01", "2024-11-05"}, // Client supports two versions, latest is 2024-11-05
-		ClientInfo: mcp.ClientInfo{
-			Name:    "Client",
-			Version: "1.0.0",
-		},
-		Capabilities: mcp.ClientCapabilities{
-			Roots:    &mcp.RootCapabilities{ListChanged: true},
-			Sampling: &mcp.SamplingCapabilities{}, // Indicate support with empty struct pointer
-		},
-		ServerInfo: &mcp.ServerInfo{},
-		ServerCaps: &mcp.ServerCapabilities{},
+		ClientInfo:        mcp.NewClientInfo("Client", "1.0.0"),
+		Capabilities:      mcp.NewClientCapabilities(),
+		ServerInfo:        &mcp.ServerInfo{},
+		ServerCaps:        &mcp.ServerCapabilities{},
 		httpClient: http.Client{
 			Timeout: time.Second * 30,
 		},
@@ -52,7 +46,7 @@ func NewClientState(initUrl string) *ClientState {
 	}
 }
 
-// Implements Initializer interface.
+// Implements ClientState interface.
 
 func (cs *ClientState) GetNegotiatedVersion() string       { return cs.NegotiatedVersion }
 func (cs *ClientState) IsInitialized() bool                { return cs.Initialized }
@@ -114,7 +108,7 @@ func (cs *ClientState) ProcessInitializeResponse(resp codec.JSONRPCResponse) err
 
 	var result mcp.InitializeResult
 	if err := json.Unmarshal(resp.Bytes(), &result); err != nil {
-		return fmt.Errorf("failed to unmarshal initialize result: %w", err)
+		return fmt.Errorf("failed to unmarshal initialize result: %v", err)
 	}
 
 	// --- Version Negotiation ---
@@ -124,7 +118,6 @@ func (cs *ClientState) ProcessInitializeResponse(resp codec.JSONRPCResponse) err
 	// Client does not support the version server responded with.
 	if !versionSupported {
 		cs.Initialized = false
-		cs.log.Error(fmt.Sprintf("Server responded with unsupported version '%s'. Supported: %v. Disconnecting.\n", serverVersion, cs.SupportedVersions))
 		return fmt.Errorf("unsupported protocol version '%s' from server", serverVersion)
 	}
 
