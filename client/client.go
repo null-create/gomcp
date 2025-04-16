@@ -84,9 +84,30 @@ func (c *MCPClient) AddHeaders(customHeaders map[string]string) {
 	c.headers = customHeaders
 }
 
+func (c *MCPClient) Ping() error {
+	req, err := http.NewRequest(http.MethodGet, c.serverURL.String(), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		c.log.Warn(fmt.Sprintf("ping: server returned non-200 status: %d", resp.StatusCode))
+	}
+	return nil
+}
+
 // Send JSONRPC requests to the server.
 // Does not wait for a response, only checks for the return code.
 func (c *MCPClient) Send(data codec.JSONRPCRequest) error {
+	if !c.initialized {
+		return errors.New("client not initialized")
+	}
+
 	body, err := json.Marshal(data)
 	if err != nil {
 		return err
