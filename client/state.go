@@ -34,11 +34,11 @@ type ClientState struct {
 func NewClientState(initUrl string) *ClientState {
 	return &ClientState{
 		initURL:           initUrl,
-		SupportedVersions: []string{"2024-10-01", "2024-11-05"}, // Client supports two versions, latest is 2024-11-05
+		SupportedVersions: []string{"2024-11-05", "2025-03-26"}, // Client supports two versions, latest is 2025-03-26
 		ClientInfo:        mcp.NewClientInfo("Client", "1.0.0"),
 		Capabilities:      mcp.NewClientCapabilities(),
-		ServerInfo:        &mcp.ServerInfo{},
-		ServerCaps:        &mcp.ServerCapabilities{},
+		ServerInfo:        new(mcp.ServerInfo),
+		ServerCaps:        new(mcp.ServerCapabilities),
 		httpClient: http.Client{
 			Timeout: time.Second * 30,
 		},
