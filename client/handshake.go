@@ -52,6 +52,7 @@ func (c *MCPClient) Handshake() error {
 		log.Printf("HANDSHAKE COMPLETE: Client Initialized: %v\n", c.state.IsInitialized())
 		log.Printf("Negotiated Protocol Version: %s\n", c.state.GetNegotiatedVersion())
 		log.Println("-------------------------------------")
+		c.initialized = true
 		return nil
 	} else {
 		return errors.New("client handshake failed. no negotiated version or server info retrieved")
