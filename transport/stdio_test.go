@@ -290,7 +290,6 @@ func TestStdio(t *testing.T) {
 			t.Errorf("Expected JSONRPC '2.0', got '%s'", responseError.JSONRPC)
 		}
 	})
-
 }
 
 func TestStdioErrors(t *testing.T) {

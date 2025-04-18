@@ -37,13 +37,8 @@ type Stdio struct {
 // NewStdio creates a new stdio transport to communicate with a subprocess.
 // It launches the specified command with given arguments and sets up stdin/stdout pipes for communication.
 // Returns an error if the subprocess cannot be started or the pipes cannot be created.
-func NewStdio(
-	command string,
-	env []string,
-	args ...string,
-) *Stdio {
-
-	client := &Stdio{
+func NewStdio(command string, env []string, args ...string) *Stdio {
+	return &Stdio{
 		command: command,
 		args:    args,
 		env:     env,
@@ -51,8 +46,6 @@ func NewStdio(
 		responses: make(map[int64]chan *codec.JSONRPCResponse),
 		done:      make(chan struct{}),
 	}
-
-	return client
 }
 
 func (c *Stdio) Start(ctx context.Context) error {
