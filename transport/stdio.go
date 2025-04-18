@@ -39,10 +39,9 @@ type Stdio struct {
 // Returns an error if the subprocess cannot be started or the pipes cannot be created.
 func NewStdio(command string, env []string, args ...string) *Stdio {
 	return &Stdio{
-		command: command,
-		args:    args,
-		env:     env,
-
+		command:   command,
+		args:      args,
+		env:       env,
 		responses: make(map[int64]chan *codec.JSONRPCResponse),
 		done:      make(chan struct{}),
 	}
