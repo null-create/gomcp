@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	"github.com/gomcp/codec"
@@ -29,6 +30,7 @@ type ClientState struct {
 	Initialized       bool
 	log               *logger.Logger
 	httpClient        http.Client
+	reqID             atomic.Int64
 }
 
 func NewClientState(initUrl string) *ClientState {
@@ -42,7 +44,8 @@ func NewClientState(initUrl string) *ClientState {
 		httpClient: http.Client{
 			Timeout: time.Second * 30,
 		},
-		log: logger.NewLogger("CLIENT STATE", uuid.NewString()),
+		log:   logger.NewLogger("CLIENT STATE", uuid.NewString()),
+		reqID: atomic.Int64{},
 	}
 }
 
@@ -81,7 +84,7 @@ func (cs *ClientState) CreateInitializeRequest() ([]byte, error) {
 
 	req := codec.JSONRPCRequest{
 		JSONRPC: codec.JsonRPCVersion,
-		ID:      uuid.NewString(),
+		ID:      cs.reqID.Add(1),
 		Method:  string(mcp.MethodInitialize),
 		Params:  paramsJSON,
 	}

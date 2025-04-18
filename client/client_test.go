@@ -61,7 +61,7 @@ func TestSend_Success(t *testing.T) {
 	}
 
 	req := codec.JSONRPCRequest{
-		ID:      "1",
+		ID:      1,
 		Method:  "testMethod",
 		JSONRPC: "2.0",
 		Params:  json.RawMessage(`{"key": "value"}`),
@@ -83,7 +83,7 @@ func TestSend_Failure(t *testing.T) {
 	}
 
 	req := codec.JSONRPCRequest{
-		ID:      "1",
+		ID:      1,
 		Method:  "testMethod",
 		JSONRPC: "2.0",
 		Params:  json.RawMessage(`{"key": "value"}`),

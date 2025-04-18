@@ -16,14 +16,19 @@ type JSONRPCRequest struct {
 	JSONRPC string          `json:"jsonrpc"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params"`
-	ID      any             `json:"id"`
+	ID      int64           `json:"id"`
 }
 
 type JSONRPCResponse struct {
 	JSONRPC string    `json:"jsonrpc"`
 	Result  any       `json:"result,omitempty"`
 	Error   *RPCError `json:"error,omitempty"`
-	ID      any       `json:"id"`
+	ID      int64     `json:"id"`
+}
+
+type JSONRCPNotification struct {
+	JSONRPC      string `json:"jsonrpc"`
+	Notification Notification
 }
 
 func (j *JSONRPCResponse) Bytes() []byte {
@@ -50,9 +55,10 @@ func (r *RPCError) ErrCode() int { return r.Code }
 func (r *RPCError) Msg() string  { return r.Message }
 
 type Notification struct {
-	JSONRPC string          `json:"jsonrpc"`
-	Method  string          `json:"method"`
-	Params  json.RawMessage `json:"params,omitempty"` // Often null/omitted for simple notifications
+	JSONRPC          string          `json:"jsonrpc"`
+	Method           string          `json:"method"`
+	Params           json.RawMessage `json:"params,omitempty"` // Often null/omitted for simple notifications
+	AdditionalFields map[string]any  `json:"additionalFields"`
 }
 
 // JSON-RPC 2.0 standard error codes
