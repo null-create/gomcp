@@ -43,7 +43,6 @@ type ClientCapabilities struct {
 }
 
 func NewClientCapabilities() ClientCapabilities {
-	// TODO: populate from a pre-existing json file
 	return ClientCapabilities{
 		Roots:        &RootCapabilities{ListChanged: true},
 		Sampling:     &SamplingCapabilities{},

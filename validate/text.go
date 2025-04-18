@@ -2,6 +2,9 @@ package validate
 
 import "fmt"
 
+// Unicode prompt-injection info:
+// https://www.robustintelligence.com/blog-posts/understanding-and-mitigating-unicode-tag-prompt-injection
+
 // DetectionCategory defines the type of problematic character found.
 type DetectionCategory string
 

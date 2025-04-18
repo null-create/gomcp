@@ -49,13 +49,16 @@ func NewMCPClient(serverURL *url.URL, initURL *url.URL, clientID string) *MCPCli
 		serverURL:    serverURL,
 		initURL:      initURL,
 		clientID:     clientID,
-		httpClient:   &http.Client{Timeout: time.Second * 30},
+		requestID:    atomic.Int64{},
 		responses:    make(map[int64]chan codec.JSONRPCResponse),
 		done:         make(chan struct{}),
 		endpointChan: make(chan struct{}),
+		initialized:  false,
+		httpClient:   &http.Client{Timeout: time.Second * 30},
 		headers:      make(map[string]string),
 		handlers:     make(map[string]chan json.RawMessage),
 		contexts:     make(map[string]*mcpctx.Context),
+		state:        NewClientState(initURL.String()),
 	}
 }
 
