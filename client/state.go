@@ -141,9 +141,8 @@ func (cs *ClientState) CreateInitializedNotification() ([]byte, error) {
 	}
 
 	noti := codec.Notification{
-		JSONRPC: codec.JsonRPCVersion,
-		Method:  "notifications/initialized",
-		Params:  codec.NotificationParams{}, // No params specified for this notification
+		Method: "notifications/initialized",
+		Params: codec.NotificationParams{}, // No params specified for this notification
 	}
 
 	notiJSON, err := json.Marshal(noti)
