@@ -227,6 +227,9 @@ func (c *MCPClient) Start(ctx context.Context) error {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
+	// TODO: validate server response headers before initiating listening
+	// https://modelcontextprotocol.io/docs/concepts/transports#security-warning%3A-dns-rebinding-attacks
+
 	// start listening for server-side events
 	go func() {
 		if err := c.listen(ctx, resp.Body, c.handleSSE); err != nil {

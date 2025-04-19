@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// ClientState implements ClientState interface.
 type ClientState struct {
 	initURL           string
 	SupportedVersions []string
@@ -41,15 +42,11 @@ func NewClientState(initUrl string) *ClientState {
 		Capabilities:      mcp.NewClientCapabilities(),
 		ServerInfo:        new(mcp.ServerInfo),
 		ServerCaps:        new(mcp.ServerCapabilities),
-		httpClient: http.Client{
-			Timeout: time.Second * 30,
-		},
-		log:   logger.NewLogger("CLIENT STATE", uuid.NewString()),
-		reqID: atomic.Int64{},
+		httpClient:        http.Client{Timeout: time.Second * 30},
+		log:               logger.NewLogger("CLIENT STATE", uuid.NewString()),
+		reqID:             atomic.Int64{},
 	}
 }
-
-// Implements ClientState interface.
 
 func (cs *ClientState) GetNegotiatedVersion() string       { return cs.NegotiatedVersion }
 func (cs *ClientState) IsInitialized() bool                { return cs.Initialized }
