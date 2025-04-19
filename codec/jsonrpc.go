@@ -26,11 +26,6 @@ type JSONRPCResponse struct {
 	ID      int64           `json:"id"`
 }
 
-type JSONRCPNotification struct {
-	JSONRPC      string `json:"jsonrpc"`
-	Notification Notification
-}
-
 func (j *JSONRPCResponse) Bytes() []byte {
 	b, err := json.Marshal(j.Result)
 	if err != nil {
@@ -45,6 +40,11 @@ func NewJSONRPCResponse() JSONRPCResponse {
 	}
 }
 
+type JSONRCPNotification struct {
+	JSONRPC      string `json:"jsonrpc"`
+	Notification Notification
+}
+
 type RPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -55,9 +55,8 @@ func (r *RPCError) ErrCode() int { return r.Code }
 func (r *RPCError) Msg() string  { return r.Message }
 
 type Notification struct {
-	JSONRPC string             `json:"jsonrpc"`
-	Method  string             `json:"method"`
-	Params  NotificationParams `json:"params,omitempty"` // Often null/omitted for simple notifications
+	Method string             `json:"method"`
+	Params NotificationParams `json:"params,omitempty"` // Often null/omitted for simple notifications
 }
 
 type NotificationParams struct {
