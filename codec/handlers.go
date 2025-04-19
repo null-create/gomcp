@@ -20,7 +20,7 @@ func ParseJSONRPCRequest(r *http.Request) (*JSONRPCRequest, error) {
 	return &req, nil
 }
 
-func WriteJSONRPCResponse(w http.ResponseWriter, result any, id int64) error {
+func WriteJSONRPCResponse(w http.ResponseWriter, result json.RawMessage, id int64) error {
 	resp := JSONRPCResponse{
 		JSONRPC: JsonRPCVersion,
 		Result:  result,
