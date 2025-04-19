@@ -1,6 +1,8 @@
 package context
 
 import (
+	"encoding/json"
+	"log"
 	"maps"
 	"time"
 
@@ -32,6 +34,15 @@ func NewContext(metadata map[string]string) *Context {
 	}
 }
 
+// Convert to json formatted bytes
+func (c *Context) ToJSON() []byte {
+	b, err := json.Marshal(c)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return b
+}
+
 // ContextUpdate represents an update request to an existing context.
 type ContextUpdate struct {
 	ID       string            `json:"id"`
@@ -53,6 +64,15 @@ type MemoryBlock struct {
 	Role    string    `json:"role"` // e.g., "user", "assistant", etc.
 	Content string    `json:"content"`
 	Time    time.Time `json:"time"`
+}
+
+// Convert to JSON-formatted bytes
+func (m *MemoryBlock) ToJSON() []byte {
+	b, err := json.Marshal(m)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return b
 }
 
 func (m *MemoryBlock) UpdateContent(newContent string) {
