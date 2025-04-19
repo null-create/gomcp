@@ -19,6 +19,14 @@ type JSONRPCRequest struct {
 	ID      int64           `json:"id"`
 }
 
+func (j *JSONRPCRequest) ToJSON() []byte {
+	b, err := json.Marshal(j)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return b
+}
+
 type JSONRPCResponse struct {
 	JSONRPC string          `json:"jsonrpc"`
 	Result  json.RawMessage `json:"result,omitempty"`
@@ -26,7 +34,7 @@ type JSONRPCResponse struct {
 	ID      int64           `json:"id"`
 }
 
-func (j *JSONRPCResponse) Bytes() []byte {
+func (j *JSONRPCResponse) ToJSON() []byte {
 	b, err := json.Marshal(j.Result)
 	if err != nil {
 		log.Fatal(err)
@@ -43,6 +51,14 @@ func NewJSONRPCResponse() JSONRPCResponse {
 type JSONRCPNotification struct {
 	JSONRPC      string `json:"jsonrpc"`
 	Notification Notification
+}
+
+func (j *JSONRCPNotification) ToJSON() []byte {
+	b, err := json.Marshal(j)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return b
 }
 
 type RPCError struct {

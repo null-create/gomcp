@@ -110,7 +110,7 @@ func (cs *ClientState) ProcessInitializeResponse(resp codec.JSONRPCResponse) err
 	}
 
 	var result mcp.InitializeResult
-	if err := json.Unmarshal(resp.Bytes(), &result); err != nil {
+	if err := json.Unmarshal(resp.ToJSON(), &result); err != nil {
 		return fmt.Errorf("failed to unmarshal initialize result: %v", err)
 	}
 
