@@ -64,7 +64,18 @@ func TestParseJSONRPCRequest(t *testing.T) {
 
 func TestWriteJSONRPCResponse(t *testing.T) {
 	rr := httptest.NewRecorder()
-	err := WriteJSONRPCResponse(rr, 42, 1)
+	result := JSONRPCResponse{
+		JSONRPC: JsonRPCVersion,
+		Result:  []byte("2"),
+		Error:   nil,
+		ID:      1,
+	}
+	r, err := json.Marshal(result)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = WriteJSONRPCResponse(rr, r, 1)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -85,9 +96,16 @@ func TestWriteJSONRPCResponse(t *testing.T) {
 	if jsonResp.JSONRPC != JsonRPCVersion {
 		t.Errorf("expected version %s, got %s", JsonRPCVersion, jsonResp.JSONRPC)
 	}
-	if jsonResp.Result.(float64) != 42 {
-		t.Errorf("expected result 42, got %v", jsonResp.Result)
+
+	var testResult map[string]interface{}
+	if err := json.Unmarshal(jsonResp.Result, &testResult); err != nil {
+		t.Errorf("failed to unmarshal test result: %v", err)
 	}
+
+	if testResult["result"].(float64) != 2 {
+		t.Errorf("expected result '2', got %v", jsonResp.Result)
+	}
+
 	if jsonResp.Error != nil {
 		t.Errorf("expected no error, got %v", jsonResp.Error)
 	}
