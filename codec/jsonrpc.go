@@ -30,7 +30,7 @@ func (j *JSONRPCRequest) ToJSON() []byte {
 type JSONRPCResponse struct {
 	JSONRPC string          `json:"jsonrpc"`
 	Result  json.RawMessage `json:"result,omitempty"`
-	Error   *RPCError       `json:"error,omitempty"`
+	Error   *JSONRPCError   `json:"error,omitempty"`
 	ID      int64           `json:"id"`
 }
 
@@ -61,14 +61,14 @@ func (j *JSONRCPNotification) ToJSON() []byte {
 	return b
 }
 
-type RPCError struct {
+type JSONRPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 }
 
-func (r *RPCError) ErrCode() int { return r.Code }
-func (r *RPCError) Msg() string  { return r.Message }
+func (r *JSONRPCError) ErrCode() int { return r.Code }
+func (r *JSONRPCError) Msg() string  { return r.Message }
 
 type Notification struct {
 	Method string             `json:"method"`

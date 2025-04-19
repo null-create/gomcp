@@ -36,7 +36,7 @@ func WriteJSONRPCError(w http.ResponseWriter, code int, message string, id int64
 	}
 	resp := JSONRPCResponse{
 		JSONRPC: JsonRPCVersion,
-		Error: &RPCError{
+		Error: &JSONRPCError{
 			Code:    code,
 			Message: message,
 		},

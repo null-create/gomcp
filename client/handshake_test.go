@@ -122,7 +122,7 @@ func TestHandshake_InitRequestFails(t *testing.T) {
 }
 
 func TestHandshake_JSONRPCErrorFromServer(t *testing.T) {
-	rpcErr := &codec.RPCError{Code: -32600, Message: "Invalid request"}
+	rpcErr := &codec.JSONRPCError{Code: -32600, Message: "Invalid request"}
 	jsonResp, _ := json.Marshal(codec.JSONRPCResponse{Error: rpcErr})
 
 	mockState := new(MockClientState)
